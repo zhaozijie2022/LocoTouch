@@ -14,13 +14,13 @@ import locotouch.mdp as mdp
 
 
 @configclass
-class MySceneCfg(InteractiveSceneCfg):
+class MySceneCfg(InteractiveSceneCfg):  # 定义场景配置
     # ground terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="plane",
-        collision_group=-1,
-        physics_material=sim_utils.RigidBodyMaterialCfg(
+        collision_group=-1,  # 碰撞组
+        physics_material=sim_utils.RigidBodyMaterialCfg(  # 地形的物理材质
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
             static_friction=1.0,
@@ -34,7 +34,7 @@ class MySceneCfg(InteractiveSceneCfg):
     # sensors
     robot_contact_senosr = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/(?!sensor.*).*",  # net_history_forces: (N, 3, 17, 3)
-        history_length=3,
+        history_length=3,  # 记录接触力的历史长度
         track_air_time=True,
     )
 
