@@ -157,7 +157,7 @@ class RewardsCfg:
 
     # -- regularization
     # - base (torso)
-    track_base_height = RewardTermCfg(func=mdp.track_base_height_ngt, weight=-0.5, params={"target_height": 0.27})
+    track_base_height = RewardTermCfg(func=mdp.track_base_height_ngt, weight=-0.5, params={"target_height": 0.42}) # go2w默认姿态追踪高度应为0.42m csq 25/11/18
     base_z_velocity = RewardTermCfg(func=mdp.base_z_velocity_ngt, weight=-1.0)
     base_roll_pitch_angle = RewardTermCfg(func=mdp.base_roll_pitch_angle_ngt, weight=-1.0)
     base_roll_pitch_velocity = RewardTermCfg(func=mdp.base_roll_pitch_velocity_ngt, weight=-0.2)
@@ -289,7 +289,7 @@ class CurriculumCfg:
 @configclass
 class LocomotionBaseEnvCfg(ManagerBasedRLEnvCfg):
     # Scene settings
-    scene: MySceneCfg = MySceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: MySceneCfg = MySceneCfg(num_envs=8192, env_spacing=2.5)
     # viewer = ViewerCfg(eye=(2.0, 2.0, 1.0), origin_type="world", env_index=0, asset_name="robot")
     viewer = ViewerCfg(
         eye=(5.0, 5.0, 4.0),

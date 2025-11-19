@@ -6,7 +6,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 class LocomotionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 80000
-    save_interval = 50
+    save_interval = 500
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         actor_hidden_dims=[512, 256, 128],

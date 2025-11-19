@@ -394,8 +394,9 @@ class AdaptiveSymmetricGaitRewardwithObject(AdaptiveSymmetricGaitReward):
 
 # ----------------- Reguralization -----------------
 # ------ Base (Torso) ------
+# 修复目标高度，go2w默认姿态追踪高度应为0.42m csq 25/11/18
 def track_base_height_ngt(
-    env: ManagerBasedRLEnv, target_height: float=0.26, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+    env: ManagerBasedRLEnv, target_height: float=0.42, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
     ) -> torch.Tensor:
     asset: RigidObject = env.scene[asset_cfg.name]
     return torch.square(asset.data.root_pos_w[:, 2] - target_height)
