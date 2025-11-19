@@ -39,8 +39,8 @@ class RandCylinderTransportNoTactileTestEnvCfg(ObjectTransportTeacherEnvCfg):
         
         # 添加随机化圆柱体
         env_num = self.scene.num_envs
-        radius_range = (0.03, 0.07)  # 半径范围: 3-7 cm
-        height_range = (0.1, 0.4)    # 高度范围: 10-40 cm
+        radius_range = (0.07, 0.07)  # 固定半径: 7 cm
+        height_range = (0.05, 0.05)  # 固定高度: 5 cm
         size_range = np.array([radius_range, height_range])
         size_samples = np.random.uniform(size_range[:, 0], size_range[:, 1], (env_num, 2))
         color_samples = np.random.uniform(0.0, 1.0, (env_num, 3)).astype(np.float32)

@@ -6,7 +6,7 @@ Go2W 轮腿机器人的随机圆柱体运输任务（无触觉传感器测试版
 import math
 import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
-from isaaclab.managers import SceneEntityCfg, EventTermCfg, TerminationTermCfg
+from isaaclab.managers import SceneEntityCfg, EventTermCfg, TerminationTermCfg, RewardTermCfg
 from isaaclab.utils import configclass
 
 import numpy as np
@@ -55,8 +55,8 @@ class RandCylinderTransportGo2WTestEnvCfg(ObjectTransportTeacherEnvCfg):
         
         # ========== 随机化圆柱体配置 ==========
         env_num = self.scene.num_envs
-        radius_range = (0.03, 0.07)  # 半径范围: 3-7 cm
-        height_range = (0.1, 0.4)    # 高度范围: 10-40 cm
+        radius_range = (0.03, 0.03)  # 固定半径: 7 cm csq 25/11/20
+        height_range = (0.03, 0.03)  # 固定高度: 5 cm csq 25/11/20
         size_range = np.array([radius_range, height_range])
         size_samples = np.random.uniform(size_range[:, 0], size_range[:, 1], (env_num, 2))
         color_samples = np.random.uniform(0.0, 1.0, (env_num, 3)).astype(np.float32)
@@ -85,7 +85,7 @@ class RandCylinderTransportGo2WTestEnvCfg(ObjectTransportTeacherEnvCfg):
                     disable_gravity=False,
                 ),
                 activate_contact_sensors=True,
-                mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=0.5), # 物体固定为0.5kg csq 25/11/20
                 collision_props=sim_utils.CollisionPropertiesCfg(
                     collision_enabled=True,
                     contact_offset=1.0e-9,
@@ -179,14 +179,6 @@ class RandCylinderTransportGo2WTestEnvCfg(ObjectTransportTeacherEnvCfg):
             },
         )
         
-        # 4. 修复步态奖励中的足端名称（Go2W 的足端：FL_foot, FR_foot, RL_foot, RR_foot）
-        # 注意：Go2W 可能不使用传统步态，但保持配置一致
-        if hasattr(self.rewards, 'gait') and self.rewards.gait is not None:
-            self.rewards.gait.params["synced_feet_pair_names"] = (
-                ("FR_foot", "RL_foot"),  # 对角线对：右前 + 左后
-                ("FL_foot", "RR_foot"),  # 对角线对：左前 + 右后
-            )
-        
         # ========== 物理属性随机化 ==========
         self.events.randomize_object_physics_material.params["static_friction_range"] = (0.3, 1.0)
         
@@ -195,13 +187,73 @@ class RandCylinderTransportGo2WTestEnvCfg(ObjectTransportTeacherEnvCfg):
         self.curriculum.velocity_commands.params["error_threshold_lin"] = 0.08
         self.curriculum.velocity_commands.params["error_threshold_ang"] = 0.1
         
-        # ========== 竖直圆柱体特定的奖励和终止条件 ==========
-        # 保持与 Go1 版本完全一致
+        # ========== 命令范围限制：y 和 yaw 方向设为 0 ========== csq 25/11/20
+        # 只允许 x 方向移动，禁止侧向移动和旋转
+        # 修改 command_maximum_ranges，确保课程学习和 PLAY 版本都使用限制后的范围
+        self.curriculum.velocity_commands.params["command_maximum_ranges"] = [0.5, 0.0, 0.0]  # v_x, v_y=0, w_z=0
+        # 直接设置命令范围（训练时生效）
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        
+        # ========== 奖励函数配置（显式列出所有奖励，便于调整权重）========== csq 25/11/20
+        # 注意：这些奖励继承自父类，这里显式列出以便直接调整权重
+        
+        # ========== 基础运动控制奖励 ==========
+        # 存活奖励
+        self.rewards.alive.weight = 10.0
+        
+        # 速度跟踪奖励（任务核心）
+        self.rewards.track_lin_vel_xy.weight = 1.5  # x-y 方向线速度跟踪
+        self.rewards.track_ang_vel_z.weight = 0.75  # z 轴角速度跟踪
+        
+        # 足端相关奖励
+        self.rewards.foot_slip.weight = 0.0  # 惩罚足端打滑 未启用
+        self.rewards.foot_dragging.weight = 0.0  # 惩罚足端拖拽 未启用
+        
+        # 步态奖励（自适应对称步态） 为四足运输设计，未启用
+        self.rewards.gait.func = mdp.AdaptiveSymmetricGaitRewardwithObject
+        self.rewards.gait.weight = 0.0 
+        self.rewards.gait.params["synced_feet_pair_names"] = (
+            ("FR_foot", "RL_foot"),  # 对角线对：右前 + 左后
+            ("FL_foot", "RR_foot"),  # 对角线对：左前 + 右后
+        )
+        
+        # ========== 姿态和稳定性奖励 ==========
+        # 基座（躯干）相关
+        self.rewards.track_base_height.weight = -10.0  # 跟踪目标高度
+        self.rewards.base_z_velocity.weight = -1.0  # 惩罚垂直方向速度
+        self.rewards.base_roll_pitch_angle.weight = -0.5  # 惩罚滚转俯仰角度
+        self.rewards.base_roll_pitch_velocity.weight = -0.5  # 惩罚滚转俯仰角速度
+        
+        # ========== 关节相关奖励 ==========
+        self.rewards.joint_position_limit.weight = -10.0  # 惩罚关节位置超限
+        self.rewards.joint_position.weight = -0.5  # 惩罚关节位置偏差
+        self.rewards.joint_acceleration.weight = -1.e-7  # 惩罚关节加速度
+        self.rewards.joint_velocity.weight = -1.e-7  # 惩罚关节速度
+        self.rewards.joint_torque.weight = -2.5e-4  # 惩罚关节力矩
+        
+        # 动作平滑度
+        self.rewards.action_rate.weight = -0.01  # 惩罚动作变化率（平滑度）
+        
+        # ========== 碰撞和接触奖励 ==========
+        self.rewards.thigh_calf_collision.weight = -1.0  # 惩罚大腿小腿碰撞
+        
+        # ========== 物体运输相关奖励 ==========
+        # 物体位置和速度
+        self.rewards.object_xy_position.weight = -1.0  # 惩罚物体在 x-y 方向偏移（仅在运动时）
+        self.rewards.object_xy_velocity.weight = 0.0  # 物体 x-y 方向速度（当前未启用）
+        self.rewards.object_z_contact.weight = -0.5  # 物体失去接触
+        self.rewards.object_z_velocity.weight = -0.5  # 惩罚物体垂直方向速度
+        
+        # 物体姿态（竖直圆柱体特定）
         self.rewards.object_roll_pitch_angle.func = mdp.object_relative_roll_pitch_angle_ngt
-        self.rewards.object_roll_pitch_angle.weight = -0.1
+        self.rewards.object_roll_pitch_angle.weight = -0.1  # 惩罚物体滚转俯仰角度
         self.rewards.object_roll_pitch_velocity.func = mdp.object_relative_roll_pitch_velocity_ngt
-        self.rewards.object_roll_pitch_velocity.weight = -0.1
-        self.rewards.object_yaw_alignment.weight = -0.05
+        self.rewards.object_roll_pitch_velocity.weight = -0.1  # 惩罚物体滚转俯仰角速度
+        self.rewards.object_yaw_alignment.weight = -0.05  # 惩罚物体 yaw 方向偏差（仅在运动时）
+        
+        # 危险状态惩罚
+        self.rewards.object_dangerous_state.weight = -5.0  # 惩罚物体处于危险状态（位置/速度超限）
         
         # 初始姿态：竖直放置
         self.events.reset_object_position.params["pose_range"]["pitch"] = (0.0, 0.0)
@@ -229,4 +281,8 @@ class RandCylinderTransportGo2WTestEnvCfg_PLAY(RandCylinderTransportGo2WTestEnvC
         # 我们需要重新设置为 Go2W_CFG（使用 Play 版本以便可视化）
         from locotouch.assets.go2w import Go2W_PLAY_CFG
         self.scene.robot = Go2W_PLAY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        
+        # 确保命令范围限制在 PLAY 版本中仍然生效（post_init 函数可能会覆盖）
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
