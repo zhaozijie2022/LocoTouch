@@ -1,7 +1,14 @@
 import gymnasium as gym
 from .agents import rsl_rl_ppo_cfg, distillation_cfg
-from . import locomotion_env_cfg, locomotion_vel_cur_env_cfg, cylinder_transport_teacher_env_cfg, rand_cylinder_transport_teacher_env_cfg, object_transport_student_env_cfg
-
+from . import (
+    locomotion_env_cfg,
+    locomotion_vel_cur_env_cfg,
+    cylinder_transport_teacher_env_cfg,
+    rand_cylinder_transport_teacher_env_cfg,
+    # rand_cylinder_transport_no_tactile_test_env_cfg,
+    rand_cylinder_transport_go2w_test_env_cfg,
+    object_transport_student_env_cfg
+)
 
 # ----------------------------------- Locomotion -----------------------------------
 gym.register(
@@ -144,6 +151,39 @@ python locotouch/scripts/train.py --task Isaac-RandCylinderTransportStudent_Sing
 python locotouch/scripts/train.py --task Isaac-RandCylinderTransportStudent_SingleBinaryTac_CNNRNN_Mon-LocoTouch-v1 --num_envs=4096 --headless
 
 python locotouch/scripts/play.py --task Isaac-RandCylinderTransportStudent_SingleBinaryTac_CNNRNN_Mon-LocoTouch-Play-v1 --num_envs=20
+"""
+
+
+# ----------------------------------- Random Cylinder Transport Go2W Test -----------------------------------
+gym.register(
+    id="Isaac-RandCylinderTransportGo2WTest-LocoTouch-v1",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": rand_cylinder_transport_go2w_test_env_cfg.RandCylinderTransportGo2WTestEnvCfg,
+        "rsl_rl_cfg_entry_point": rsl_rl_ppo_cfg.RandCylinderTransportGo2WTestPPORunnerCfg,
+    },
+)
+
+gym.register(
+    id="Isaac-RandCylinderTransportGo2WTest-LocoTouch-Play-v1",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": rand_cylinder_transport_go2w_test_env_cfg.RandCylinderTransportGo2WTestEnvCfg_PLAY,
+        "rsl_rl_cfg_entry_point": rsl_rl_ppo_cfg.RandCylinderTransportGo2WTestPPORunnerCfg,
+    },
+)
+"""
+Go2W 轮腿机器人运载任务 - 16个关节（12腿+4轮）
+
+训练命令:
+python locotouch/scripts/train.py --task Isaac-RandCylinderTransportGo2WTest-LocoTouch-v1 --num_envs=4 --logger=tensorboard
+python locotouch/scripts/train.py --task Isaac-RandCylinderTransportGo2WTest-LocoTouch-v1 --num_envs=4096 --headless
+
+测试命令:
+python locotouch/scripts/play.py --task Isaac-RandCylinderTransportGo2WTest-LocoTouch-Play-v1 --num_envs=20 --load_run=<your_run_folder>
+
 """
 
 

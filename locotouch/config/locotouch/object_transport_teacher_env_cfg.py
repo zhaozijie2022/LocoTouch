@@ -117,6 +117,7 @@ class   ObjectTransportTeacherEnvCfg(LocomotionVelCurEnvCfg):
         self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.6, 1.5)
         self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.6, 1.5)
         self.events.randomize_foot_physics_material.params["restitution_range"] = (0.0, 0.3)
+        # reset:
         self.events.randomize_trunk_sensor_physics_material = EventTermCfg(
             func=mdp.randomize_friction_restitution,  # this will make the friction of the bodies indicated consistent
             mode="reset",
@@ -184,6 +185,7 @@ class   ObjectTransportTeacherEnvCfg(LocomotionVelCurEnvCfg):
                 "distribution": "uniform",
             },
         )
+        # interval
         self.events.push_robot.interval_range_s = (6.0, 10.0)
         self.events.push_robot.params["velocity_range"]["x"] = (-0.4, 0.4)
         self.events.push_robot.params["velocity_range"]["y"] = (-0.3, 0.3)

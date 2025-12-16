@@ -58,7 +58,9 @@ class CommandsCfg:
         heading_command=False,
         # debug_vis=True,
         ranges=mdp.UniformVelocityCommandGaitLoggingCfg.Ranges(
-            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-0.6, 0.6), ang_vel_z=(-math.pi / 2, math.pi / 2)
+            lin_vel_x=(-1.0, 1.0),
+            lin_vel_y=(-0.6, 0.6),
+            ang_vel_z=(-math.pi / 2, math.pi / 2)
         ),
         rel_standing_envs=0.1,
     )
@@ -69,12 +71,42 @@ class ObservationsCfg:
     # observation processing: add noise, clip, scale
     @configclass
     class NoisyProprioceptionCfg(ObservationGroupCfg):
-        velocity_commands = ObservationTermCfg(func=mdp.generated_commands, scale=1.0, params={"command_name": "base_velocity"}, history_length=6)
-        base_ang_vel = ObservationTermCfg(func=mdp.base_ang_vel, scale=0.25, noise=Unoise(n_min=-0.2, n_max=0.2), history_length=6)
-        projected_gravity = ObservationTermCfg(func=mdp.projected_gravity, scale=1.0, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=6)
-        joint_pos = ObservationTermCfg(func=mdp.joint_pos_rel, scale=1.0, noise=Unoise(n_min=-0.01, n_max=0.01), history_length=6)
-        joint_vel = ObservationTermCfg(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5), history_length=6)
-        last_action = ObservationTermCfg(func=mdp.last_action, scale=1.0, params={"action_name": "joint_pos"}, history_length=6)  # remember to specify the action name since raw_actions are clipped actions
+        velocity_commands = ObservationTermCfg(
+            func=mdp.generated_commands,
+            scale=1.0,
+            params={"command_name": "base_velocity"},
+            history_length=6
+        )
+        base_ang_vel = ObservationTermCfg(
+            func=mdp.base_ang_vel,
+            scale=0.25,
+            noise=Unoise(n_min=-0.2, n_max=0.2),
+            history_length=6
+        )
+        projected_gravity = ObservationTermCfg(
+            func=mdp.projected_gravity,
+            scale=1.0,
+            noise=Unoise(n_min=-0.05, n_max=0.05),
+            history_length=6
+        )
+        joint_pos = ObservationTermCfg(
+            func=mdp.joint_pos_rel,
+            scale=1.0,
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            history_length=6
+        )
+        joint_vel = ObservationTermCfg(
+            func=mdp.joint_vel_rel,
+            scale=0.05,
+            noise=Unoise(n_min=-1.5, n_max=1.5),
+            history_length=6
+        )
+        last_action = ObservationTermCfg(
+            func=mdp.last_action,
+            scale=1.0,
+            params={"action_name": "joint_pos"},
+            history_length=6
+        )  # remember to specify the action name since raw_actions are clipped actions
 
         def __post_init__(self):
             self.enable_corruption = True

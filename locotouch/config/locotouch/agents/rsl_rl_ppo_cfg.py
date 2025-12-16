@@ -64,8 +64,37 @@ class RandCylinderTransportTeacherPPORunnerCfg(ObjectTransportTeacherPPORunnerCf
         self.experiment_name = "locotouch_rand_cylinder_transport_teacher"
 
 
+@configclass
+class RandCylinderTransportNoTactileTestPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
+    """
+    无触觉传感器测试版本的 PPO 配置
+    用于验证不依赖触觉传感器是否能完成负载运输任务
+    """
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "locotouch_rand_cylinder_transport_no_tactile_test"
+        self.wandb_project = "Object_Transport_No_Tactile_Test"
+        # 可以根据需要调整其他训练参数
+        # 例如：增加探索噪声、调整学习率等
 
 
+@configclass
+class RandCylinderTransportGo2WTestPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
+    """
+    Go2W 轮腿机器人的运载任务 PPO 配置
+    16 个关节：12 个腿部（位置控制）+ 4 个轮子（速度控制）
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "locotouch_rand_cylinder_transport_go2w_test"
+        self.wandb_project = "Go2W_Object_Transport_Locomotion"
+        # 训练 80000 轮
+        self.max_iterations = 80000
+
+        # Go2W 的网络可能需要更大的容量（因为16个关节）
+        # 但先保持与 Go1 一致，观察效果
+        # self.policy.actor_hidden_dims = [768, 512, 256]  # 可选：更大的网络
 
 
 
