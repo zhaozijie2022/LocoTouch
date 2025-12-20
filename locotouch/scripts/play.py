@@ -122,9 +122,9 @@ def main():
     # )
 
     # reset environment
-    # obs, extras = env.get_observations()
-    env_obs = env.get_observations()
-    obs = env_obs["policy"]
+    obs, extras = env.get_observations()
+    # env_obs = env.get_observations()
+    # obs = env_obs["policy"]
 
     # print("Shape of the observation: ", obs[0].shape)
     timestep = 0
@@ -196,9 +196,9 @@ def main():
             # print("Actions: ", actions[0])
             # input("Press Enter to continue...")
             # env stepping
-            # obs, _, dones, extras = env.step(actions)
-            next_obs, _, dones, extras = env.step(actions)
-            obs = next_obs["policy"]
+            obs, _, dones, extras = env.step(actions)
+            # next_obs, _, dones, extras = env.step(actions)
+            # obs = next_obs["policy"]
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video

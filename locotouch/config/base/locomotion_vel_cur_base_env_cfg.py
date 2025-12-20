@@ -52,17 +52,17 @@ class LocomotionVelCurBaseEnvCfg(LocomotionBaseEnvCfg):
 
 def locomotion_vel_cur_play_env_post_init_func(env_cfg: LocomotionVelCurBaseEnvCfg) -> None:
     smaller_scene_for_playing(env_cfg)
-    velocity_commands_ranges = env_cfg.curriculum.velocity_commands.params["command_maximum_ranges"]
-    env_cfg.commands.base_velocity.ranges.lin_vel_x = (-velocity_commands_ranges[0], velocity_commands_ranges[0])
-    env_cfg.commands.base_velocity.ranges.lin_vel_y = (-velocity_commands_ranges[1], velocity_commands_ranges[1])
-    env_cfg.commands.base_velocity.ranges.ang_vel_z = (-velocity_commands_ranges[2], velocity_commands_ranges[2])
-    env_cfg.commands.base_velocity.initial_zero_command_steps = env_cfg.commands.base_velocity.final_initial_zero_command_steps
-    env_cfg.commands.base_velocity.rel_standing_envs = env_cfg.commands.base_velocity.final_rel_standing_envs
-
-    # do it again for avoiding curriculum during play
-    env_cfg.curriculum.velocity_commands.params["command_maximum_ranges"] = [env_cfg.commands.base_velocity.ranges.lin_vel_x[1],
-                                                                            env_cfg.commands.base_velocity.ranges.lin_vel_y[1],
-                                                                            env_cfg.commands.base_velocity.ranges.ang_vel_z[1]]
+    # velocity_commands_ranges = env_cfg.curriculum.velocity_commands.params["command_maximum_ranges"]
+    # env_cfg.commands.base_velocity.ranges.lin_vel_x = (-velocity_commands_ranges[0], velocity_commands_ranges[0])
+    # env_cfg.commands.base_velocity.ranges.lin_vel_y = (-velocity_commands_ranges[1], velocity_commands_ranges[1])
+    # env_cfg.commands.base_velocity.ranges.ang_vel_z = (-velocity_commands_ranges[2], velocity_commands_ranges[2])
+    # env_cfg.commands.base_velocity.initial_zero_command_steps = env_cfg.commands.base_velocity.final_initial_zero_command_steps
+    # env_cfg.commands.base_velocity.rel_standing_envs = env_cfg.commands.base_velocity.final_rel_standing_envs
+    #
+    # # do it again for avoiding curriculum during play
+    # env_cfg.curriculum.velocity_commands.params["command_maximum_ranges"] = [env_cfg.commands.base_velocity.ranges.lin_vel_x[1],
+    #                                                                         env_cfg.commands.base_velocity.ranges.lin_vel_y[1],
+    #                                                                         env_cfg.commands.base_velocity.ranges.ang_vel_z[1]]
 
 
 class LocomotionVelCurBaseEnvCfg_PLAY(LocomotionVelCurBaseEnvCfg):

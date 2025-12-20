@@ -79,7 +79,7 @@ class RandCylinderTransportNoTactileTestPPORunnerCfg(ObjectTransportTeacherPPORu
 
 
 @configclass
-class RandCylinderTransportGo2WTestPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
+class RandCylinderTransportGo2WTeacherPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
     """
     Go2W 轮腿机器人的运载任务 PPO 配置
     16 个关节：12 个腿部（位置控制）+ 4 个轮子（速度控制）
@@ -87,7 +87,7 @@ class RandCylinderTransportGo2WTestPPORunnerCfg(ObjectTransportTeacherPPORunnerC
 
     def __post_init__(self):
         super().__post_init__()
-        self.experiment_name = "locotouch_rand_cylinder_transport_go2w_test"
+        self.experiment_name = "locotouch_rand_cylinder_transport_go2w_teacher"
         self.wandb_project = "Go2W_Object_Transport_Locomotion"
         # 训练 80000 轮
         self.max_iterations = 80000
