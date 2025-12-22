@@ -1,6 +1,5 @@
 """
-Random Cylinder Transport Task Configuration - Go2W Version
-Go2W 轮腿机器人的随机圆柱体运输任务（无触觉传感器测试版本）
+Go2W 轮腿机器人的 Locomotion
 """
 
 import math
@@ -11,14 +10,13 @@ from isaaclab.utils import configclass
 
 import numpy as np
 import locotouch.mdp as mdp
+import locotouch.mdp_go2w as mdp_go2w  # Go2W 特有的 MDP 函数
 from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
 from locotouch.assets.go2w import Go2W_CFG  # 使用 Go2W 机器人
-from locotouch.assets.go2w_transport import Go2W_TRANSPORT_CFG
-from .object_transport_teacher_env_cfg import (
-    ObjectTransportTeacherEnvCfg,
-    locotouch_object_transport_play_env_post_init_func,
-)
-import locotouch.mdp.robotlab_rewards as robotlab_rewards
+# from locotouch.assets.go2w_transport import Go2W_TRANSPORT_CFG
+
+from ..base.locomotion_base_env_cfg import LocomotionBaseEnvCfg
+
 
 
 # new-import
@@ -30,14 +28,14 @@ from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 class RobotLabRewardsCfg:
 
     # General
-    is_terminated = RewardTermCfg(func=robotlab_rewards.is_terminated, weight=0.0)
+    is_terminated = RewardTermCfg(func=mdp_go2w.is_terminated, weight=0.0)
 
     # Root penalties
-    lin_vel_z_l2 = RewardTermCfg(func=robotlab_rewards.lin_vel_z_l2, weight=0.0)
-    ang_vel_xy_l2 = RewardTermCfg(func=robotlab_rewards.ang_vel_xy_l2, weight=0.0)
-    flat_orientation_l2 = RewardTermCfg(func=robotlab_rewards.flat_orientation_l2, weight=0.0)
+    lin_vel_z_l2 = RewardTermCfg(func=mdp_go2w.lin_vel_z_l2, weight=0.0)
+    ang_vel_xy_l2 = RewardTermCfg(func=mdp_go2w.ang_vel_xy_l2, weight=0.0)
+    flat_orientation_l2 = RewardTermCfg(func=mdp_go2w.flat_orientation_l2, weight=0.0)
     base_height_l2 = RewardTermCfg(
-        func=robotlab_rewards.base_height_l2,
+        func=mdp_go2w.base_height_l2,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=""),
@@ -46,40 +44,40 @@ class RobotLabRewardsCfg:
         },
     )
     body_lin_acc_l2 = RewardTermCfg(
-        func=robotlab_rewards.body_lin_acc_l2,
+        func=mdp_go2w.body_lin_acc_l2,
         weight=0.0,
         params={"asset_cfg": SceneEntityCfg("robot", body_names="")},
     )
 
     # Joint penalties
     joint_torques_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_torques_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
+        func=mdp_go2w.joint_torques_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
     )
     joint_vel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_vel_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
+        func=mdp_go2w.joint_vel_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
     )
     joint_acc_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_acc_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
+        func=mdp_go2w.joint_acc_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
     )
 
     def create_joint_deviation_l1_rewterm(self, attr_name, weight, joint_names_pattern):
         rew_term = RewardTermCfg(
-            func=robotlab_rewards.joint_deviation_l1,
+            func=mdp_go2w.joint_deviation_l1,
             weight=weight,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=joint_names_pattern)},
         )
         setattr(self, attr_name, rew_term)
 
     joint_pos_limits = RewardTermCfg(
-        func=robotlab_rewards.joint_pos_limits, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
+        func=mdp_go2w.joint_pos_limits, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
     )
     joint_vel_limits = RewardTermCfg(
-        func=robotlab_rewards.joint_vel_limits,
+        func=mdp_go2w.joint_vel_limits,
         weight=0.0,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*"), "soft_ratio": 1.0},
     )
     joint_power = RewardTermCfg(
-        func=robotlab_rewards.joint_power,
+        func=mdp_go2w.joint_power,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
@@ -87,7 +85,7 @@ class RobotLabRewardsCfg:
     )
 
     stand_still_without_cmd = RewardTermCfg(
-        func=robotlab_rewards.stand_still_without_cmd,
+        func=mdp_go2w.stand_still_without_cmd,
         weight=0.0,
         params={
             "command_name": "base_velocity",
@@ -97,7 +95,7 @@ class RobotLabRewardsCfg:
     )
 
     joint_pos_penalty = RewardTermCfg(
-        func=robotlab_rewards.joint_pos_penalty,
+        func=mdp_go2w.joint_pos_penalty,
         weight=0.0,
         params={
             "command_name": "base_velocity",
@@ -109,7 +107,7 @@ class RobotLabRewardsCfg:
     )
 
     wheel_vel_penalty = RewardTermCfg(
-        func=robotlab_rewards.wheel_vel_penalty,
+        func=mdp_go2w.wheel_vel_penalty,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=""),
@@ -121,7 +119,7 @@ class RobotLabRewardsCfg:
     )
 
     joint_mirror = RewardTermCfg(
-        func=robotlab_rewards.joint_mirror,
+        func=mdp_go2w.joint_mirror,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot"),
@@ -130,7 +128,7 @@ class RobotLabRewardsCfg:
     )
 
     action_mirror = RewardTermCfg(
-        func=robotlab_rewards.action_mirror,
+        func=mdp_go2w.action_mirror,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot"),
@@ -139,7 +137,7 @@ class RobotLabRewardsCfg:
     )
 
     action_sync = RewardTermCfg(
-        func=robotlab_rewards.action_sync,
+        func=mdp_go2w.action_sync,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot"),
@@ -153,17 +151,17 @@ class RobotLabRewardsCfg:
 
     # Action penalties
     applied_torque_limits = RewardTermCfg(
-        func=robotlab_rewards.applied_torque_limits,
+        func=mdp_go2w.applied_torque_limits,
         weight=0.0,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
-    action_rate_l2 = RewardTermCfg(func=robotlab_rewards.action_rate_l2, weight=0.0)
-    # smoothness_1 = RewardTermCfg(func=robotlab_rewards.smoothness_1, weight=0.0)  # Same as action_rate_l2
-    # smoothness_2 = RewardTermCfg(func=robotlab_rewards.smoothness_2, weight=0.0)  # Unvaliable now
+    action_rate_l2 = RewardTermCfg(func=mdp_go2w.action_rate_l2, weight=0.0)
+    # smoothness_1 = RewardTermCfg(func=mdp_go2w.smoothness_1, weight=0.0)  # Same as action_rate_l2
+    # smoothness_2 = RewardTermCfg(func=mdp_go2w.smoothness_2, weight=0.0)  # Unvaliable now
 
     # Contact sensor
     undesired_contacts = RewardTermCfg(
-        func=robotlab_rewards.undesired_contacts,
+        func=mdp_go2w.undesired_contacts,
         weight=0.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
@@ -171,22 +169,22 @@ class RobotLabRewardsCfg:
         },
     )
     contact_forces = RewardTermCfg(
-        func=robotlab_rewards.contact_forces,
+        func=mdp_go2w.contact_forces,
         weight=0.0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=""), "threshold": 100.0},
     )
 
     # Velocity-tracking rewards
     track_lin_vel_xy_exp = RewardTermCfg(
-        func=robotlab_rewards.track_lin_vel_xy_exp, weight=0.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
+        func=mdp_go2w.track_lin_vel_xy_exp, weight=0.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
     track_ang_vel_z_exp = RewardTermCfg(
-        func=robotlab_rewards.track_ang_vel_z_exp, weight=0.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
+        func=mdp_go2w.track_ang_vel_z_exp, weight=0.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
 
     # Others
     feet_air_time = RewardTermCfg(
-        func=robotlab_rewards.feet_air_time,
+        func=mdp_go2w.feet_air_time,
         weight=0.0,
         params={
             "command_name": "base_velocity",
@@ -196,13 +194,13 @@ class RobotLabRewardsCfg:
     )
 
     feet_air_time_variance = RewardTermCfg(
-        func=robotlab_rewards.feet_air_time_variance_penalty,
+        func=mdp_go2w.feet_air_time_variance_penalty,
         weight=0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="")},
     )
 
     feet_gait = RewardTermCfg(
-        func=robotlab_rewards.GaitReward,
+        func=mdp_go2w.GaitReward,
         weight=0.0,
         params={
             "std": math.sqrt(0.5),
@@ -217,7 +215,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_contact = RewardTermCfg(
-        func=robotlab_rewards.feet_contact,
+        func=mdp_go2w.feet_contact,
         weight=0.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
@@ -227,7 +225,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_contact_without_cmd = RewardTermCfg(
-        func=robotlab_rewards.feet_contact_without_cmd,
+        func=mdp_go2w.feet_contact_without_cmd,
         weight=0.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
@@ -236,7 +234,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_stumble = RewardTermCfg(
-        func=robotlab_rewards.feet_stumble,
+        func=mdp_go2w.feet_stumble,
         weight=0.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
@@ -244,7 +242,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_slide = RewardTermCfg(
-        func=robotlab_rewards.feet_slide,
+        func=mdp_go2w.feet_slide,
         weight=0.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
@@ -253,7 +251,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_height = RewardTermCfg(
-        func=robotlab_rewards.feet_height,
+        func=mdp_go2w.feet_height,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=""),
@@ -264,7 +262,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_height_body = RewardTermCfg(
-        func=robotlab_rewards.feet_height_body,
+        func=mdp_go2w.feet_height_body,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=""),
@@ -275,7 +273,7 @@ class RobotLabRewardsCfg:
     )
 
     feet_distance_y_exp = RewardTermCfg(
-        func=robotlab_rewards.feet_distance_y_exp,
+        func=mdp_go2w.feet_distance_y_exp,
         weight=0.0,
         params={
             "std": math.sqrt(0.25),
@@ -285,7 +283,7 @@ class RobotLabRewardsCfg:
     )
 
     # feet_distance_xy_exp = RewardTermCfg(
-    #     func=robotlab_rewards.feet_distance_xy_exp,
+    #     func=mdp_go2w.feet_distance_xy_exp,
     #     weight=0.0,
     #     params={
     #         "std": math.sqrt(0.25),
@@ -295,30 +293,24 @@ class RobotLabRewardsCfg:
     #     },
     # )
 
-    upward = RewardTermCfg(func=robotlab_rewards.upward, weight=0.0)
+    upward = RewardTermCfg(func=mdp_go2w.upward, weight=0.0)
 
     joint_vel_wheel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_vel_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
+        func=mdp_go2w.joint_vel_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
     )
 
     joint_acc_wheel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_acc_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
+        func=mdp_go2w.joint_acc_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
     )
 
     joint_torques_wheel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_torques_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
+        func=mdp_go2w.joint_torques_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
     )
-
-
-# 重写 ObservationsCfg
-class GymDreamWaQRewardsCfg:
-    """ 全面继承自gym_dreamwaq"""
-    pass
 
 
 
 @configclass
-class RandCylinderTransportGo2WTeacherEnvCfg(ObjectTransportTeacherEnvCfg):
+class RandCylinderTransportGo2WTeacherEnvCfg(LocomotionBaseEnvCfg):
     
     # Go2W 关节配置
     base_link_name = "base"
@@ -339,9 +331,9 @@ class RandCylinderTransportGo2WTeacherEnvCfg(ObjectTransportTeacherEnvCfg):
         
         # ========== 机器人配置 ==========
         self.scene.replicate_physics = False
-        # self.scene.robot = Go2W_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-        self.scene.robot = Go2W_TRANSPORT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = Go2W_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        #
+        # self.scene.robot = Go2W_TRANSPORT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # region ------------------------------Sence------------------------------
         # zz 增加地形传感器, 后续万一用到了
@@ -416,11 +408,11 @@ class RandCylinderTransportGo2WTeacherEnvCfg(ObjectTransportTeacherEnvCfg):
 
         # region ------------------------------Observations------------------------------
         # 参考 robot_lab 和 gym_dreamwaq , 轮子的位置是没必要加进来的
-        self.observations.policy.joint_pos.func = mdp.joint_pos_rel_without_wheel
+        self.observations.policy.joint_pos.func = mdp_go2w.joint_pos_rel_without_wheel
         self.observations.policy.joint_pos.params["wheel_asset_cfg"] = SceneEntityCfg(
             "robot", joint_names=self.wheel_joint_names
         )
-        self.observations.critic.joint_pos.func = mdp.joint_pos_rel_without_wheel
+        self.observations.critic.joint_pos.func = mdp_go2w.joint_pos_rel_without_wheel
         self.observations.critic.joint_pos.params["wheel_asset_cfg"] = SceneEntityCfg(
             "robot", joint_names=self.wheel_joint_names
         )
@@ -448,7 +440,6 @@ class RandCylinderTransportGo2WTeacherEnvCfg(ObjectTransportTeacherEnvCfg):
         # self.observations.policy.joint_vel.params["asset_cfg"].joint_names = self.joint_names
 
         # 参考 robot_lab 和 gym_dreamwaq, 移除历史帧
-        self.observations.policy.history_length = 0
         self.observations.policy.velocity_commands.history_length = 0
         self.observations.policy.base_ang_vel.history_length = 0
         self.observations.policy.projected_gravity.history_length = 0
@@ -457,7 +448,6 @@ class RandCylinderTransportGo2WTeacherEnvCfg(ObjectTransportTeacherEnvCfg):
         self.observations.policy.last_action.history_length = 0
         self.observations.policy.object_state.history_length = 0
 
-        self.observations.critic.history_length = 0
         self.observations.critic.velocity_commands.history_length = 0
         self.observations.critic.base_ang_vel.history_length = 0
         self.observations.critic.projected_gravity.history_length = 0
@@ -543,43 +533,39 @@ class RandCylinderTransportGo2WTeacherEnvCfg(ObjectTransportTeacherEnvCfg):
         # self.commands.base_velocity.initial_zero_command_steps = 0  # set to 0 to encourage exploration
         # self.commands.base_velocity.final_initial_zero_command_steps = 50  # 前50步无论如何采样也输出0指令
 
-        self.commands.base_velocity = mdp.UniformVelocityCommandMultiSamplingCfg(
+        self.commands.base_velocity = mdp_go2w.UniformThresholdVelocityCommandCfg(
             asset_name="robot",
-            resampling_time_range=(10.0, 10.0),
+            resampling_time_range=(8.0, 8.0),
             rel_standing_envs=0.1,
-            final_rel_standing_envs=0.05,
-            initial_zero_command_steps=0,
-            final_initial_zero_command_steps=50,
             rel_heading_envs=0.0,
             heading_command=False,
-            # heading_control_stiffness=0.5,
             # debug_vis=True,
-            ranges=mdp.UniformVelocityCommandMultiSamplingCfg.Ranges(
-                lin_vel_x=(-1.0, 1.0),
-                lin_vel_y=(-0.5, 0.5),
+            ranges=mdp_go2w.UniformThresholdVelocityCommandCfg.Ranges(
+                lin_vel_x=(-0.5, 0.5),
+                lin_vel_y=(-0.0, 0.0),
                 ang_vel_z=(-0.0, 0.0),
             ),
         )
-
-
         # endregion
 
         # region ------------------------------Curriculums------------------------------
+        # self.curriculum.velocity_commands.params["command_maximum_ranges"] = [0.5, 0.0, 0.0]
+        # self.curriculum.velocity_commands.params["reset_envs_episode_length"] = 0.98
+        # self.curriculum.velocity_commands.params["error_threshold_lin"] = 0.08
+        # self.curriculum.velocity_commands.params["error_threshold_ang"] = 0.1
 
-        self.curriculum.command_xy_levels = CurriculumTermCfg(
-            func=mdp.command_xy_levels_vel,
-            params={
-                "reward_term_name": "track_lin_vel_xy_exp",
-                "range_multiplier": (0.1, 1.0),
-            },
-        )
-        self.curriculum.command_z_levels = CurriculumTermCfg(
-            func=mdp.command_z_levels_vel,
-            params={
-                "reward_term_name": "track_ang_vel_z_exp",
-                "range_multiplier": (0.1, 1.0),
-            },
-        )
+        # self.curriculum.velocity_commands = CurriculumTermCfg(
+        #     func=mdp_go2w.ModifyVelCommandsRangeBasedOnTrackingError,
+        #     params={
+        #         "command_name": "base_velocity",
+        #         "command_maximum_ranges": [...],
+        #         "curriculum_bins": [20, 20, 20],
+        #         "error_threshold_lin": 0.056,  # 现在解释为 MSE 阈值
+        #         "error_threshold_ang": 0.089,  # 现在解释为 MSE 阈值
+        #         "repeat_times_lin": 1,
+        #         "repeat_times_ang": 1,
+        #     },
+        # )
 
         self.curriculum.velocity_commands = None
 

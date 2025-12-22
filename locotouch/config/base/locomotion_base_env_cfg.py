@@ -321,7 +321,7 @@ class CurriculumCfg:
 @configclass
 class LocomotionBaseEnvCfg(ManagerBasedRLEnvCfg):
     # Scene settings
-    scene: MySceneCfg = MySceneCfg(num_envs=8192, env_spacing=2.5)
+    scene: MySceneCfg = MySceneCfg(num_envs=4096, env_spacing=2.5)
     # viewer = ViewerCfg(eye=(2.0, 2.0, 1.0), origin_type="world", env_index=0, asset_name="robot")
     viewer = ViewerCfg(
         eye=(5.0, 5.0, 4.0),

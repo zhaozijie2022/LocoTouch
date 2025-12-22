@@ -10,6 +10,177 @@ import math
 import locotouch.mdp as mdp
 
 
+# ----------------- Go2W -----------------
+def command_xy_levels_vel(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    reward_term_name: str,
+    range_multiplier: Sequence[float] = (0.1, 1.0),
+    delta: float = 0.1,
+    threshold: float = 0.8,
+) -> None:
+    """command_levels_vel"""
+    base_velocity_ranges = env.command_manager.get_term("base_velocity").cfg.ranges
+    # Get original velocity ranges (ONLY ON FIRST EPISODE)
+    if env.common_step_counter == 0:
+        env._original_vel_x = torch.tensor(base_velocity_ranges.lin_vel_x, device=env.device)
+        env._original_vel_y = torch.tensor(base_velocity_ranges.lin_vel_y, device=env.device)
+        env._initial_vel_x = env._original_vel_x * range_multiplier[0]
+        env._final_vel_x = env._original_vel_x * range_multiplier[1]
+        env._initial_vel_y = env._original_vel_y * range_multiplier[0]
+        env._final_vel_y = env._original_vel_y * range_multiplier[1]
+
+        # Initialize command ranges to initial values
+        base_velocity_ranges.lin_vel_x = env._initial_vel_x.tolist()
+        base_velocity_ranges.lin_vel_y = env._initial_vel_y.tolist()
+
+    # avoid updating command curriculum at each step since the maximum command is common to all envs
+    if env.common_step_counter % env.max_episode_length == 0:
+        episode_sums = env.reward_manager._episode_sums[reward_term_name]
+        reward_term_cfg = env.reward_manager.get_term_cfg(reward_term_name)
+        delta_command = torch.tensor([-delta, delta], device=env.device)
+
+        # If the tracking reward is above 80% of the maximum, increase the range of commands
+        if torch.mean(episode_sums[env_ids]) / env.max_episode_length_s > threshold * reward_term_cfg.weight:
+            new_vel_x = torch.tensor(base_velocity_ranges.lin_vel_x, device=env.device) + delta_command
+            new_vel_y = torch.tensor(base_velocity_ranges.lin_vel_y, device=env.device) + delta_command
+
+            # Clamp to ensure we don't exceed final ranges
+            new_vel_x = torch.clamp(new_vel_x, min=env._final_vel_x[0], max=env._final_vel_x[1])
+            new_vel_y = torch.clamp(new_vel_y, min=env._final_vel_y[0], max=env._final_vel_y[1])
+
+            # Update ranges
+            base_velocity_ranges.lin_vel_x = new_vel_x.tolist()
+            base_velocity_ranges.lin_vel_y = new_vel_y.tolist()
+
+    return torch.tensor(base_velocity_ranges.lin_vel_x[1], device=env.device)
+
+
+def command_x_levels_vel(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    reward_term_name: str,  # 使用哪个奖励项来决定是否调整课程
+    range_multiplier: Sequence[float] = (0.1, 1.0),  # 课程起点和终点
+    delta: float = 0.1,
+    threshold: float = 0.8,
+) -> torch.Tensor:
+    """根据跟踪奖励的表现调整速度命令的范围。"""
+    base_velocity_ranges = env.command_manager.get_term("base_velocity").cfg.ranges
+    # Get original velocity ranges (ONLY ON FIRST EPISODE)
+    if env.common_step_counter == 0:
+        env._original_vel_x = torch.tensor(base_velocity_ranges.lin_vel_x, device=env.device)
+        env._initial_vel_x = env._original_vel_x * range_multiplier[0]
+        env._final_vel_x = env._original_vel_x * range_multiplier[1]
+
+        # Initialize command ranges to initial values
+        base_velocity_ranges.lin_vel_x = env._initial_vel_x.tolist()
+
+    # avoid updating command curriculum at each step since the maximum command is common to all envs
+    if env.common_step_counter % env.max_episode_length == 0:
+        episode_sums = env.reward_manager._episode_sums[reward_term_name]
+        reward_term_cfg = env.reward_manager.get_term_cfg(reward_term_name)
+        delta_command = torch.tensor([-delta, delta], device=env.device)
+
+        # If the tracking reward is above 80% of the maximum, increase the range of commands
+        if torch.mean(episode_sums[env_ids]) / env.max_episode_length_s > threshold * reward_term_cfg.weight:
+            # 如果达到了最好值的80%，就增加命令范围
+            new_vel_x = torch.tensor(base_velocity_ranges.lin_vel_x, device=env.device) + delta_command
+
+            # Clamp to ensure we don't exceed final ranges
+            new_vel_x = torch.clamp(new_vel_x, min=env._final_vel_x[0], max=env._final_vel_x[1])
+
+            # Update ranges
+            base_velocity_ranges.lin_vel_x = new_vel_x.tolist()
+
+    return torch.tensor(base_velocity_ranges.lin_vel_x[1], device=env.device)
+
+
+def command_y_levels_vel(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    reward_term_name: str,  # 使用哪个奖励项来决定是否调整课程
+    range_multiplier: Sequence[float] = (0.1, 1.0),  # 课程起点和终点
+    delta: float = 0.1,
+    threshold: float = 0.8,
+) -> torch.Tensor:
+    """对于轮足, y和x并不对等"""
+    base_velocity_ranges = env.command_manager.get_term("base_velocity").cfg.ranges
+    # Get original velocity ranges (ONLY ON FIRST EPISODE)
+    if env.common_step_counter == 0:
+        env._original_vel_y = torch.tensor(base_velocity_ranges.lin_vel_y, device=env.device)
+        env._initial_vel_y = env._original_vel_y * range_multiplier[0]
+        env._final_vel_y = env._original_vel_y * range_multiplier[1]
+
+        # Initialize command ranges to initial values
+        base_velocity_ranges.lin_vel_y = env._initial_vel_y.tolist()
+
+    # avoid updating command curriculum at each step since the maximum command is common to all envs
+    if env.common_step_counter % env.max_episode_length == 0:
+        episode_sums = env.reward_manager._episode_sums[reward_term_name]
+        reward_term_cfg = env.reward_manager.get_term_cfg(reward_term_name)
+        delta_command = torch.tensor([-delta, delta], device=env.device)
+
+        # If the tracking reward is above 80% of the maximum, increase the range of commands
+        if torch.mean(episode_sums[env_ids]) / env.max_episode_length_s > threshold * reward_term_cfg.weight:
+            # 如果达到了最好值的80%，就增加命令范围
+            new_vel_y = torch.tensor(base_velocity_ranges.lin_vel_y, device=env.device) + delta_command
+
+            # Clamp to ensure we don't exceed final ranges
+            new_vel_y = torch.clamp(new_vel_y, min=env._final_vel_y[0], max=env._final_vel_y[1])
+
+            # Update ranges
+            base_velocity_ranges.lin_vel_y = new_vel_y.tolist()
+
+    return torch.tensor(base_velocity_ranges.lin_vel_y[1], device=env.device)
+
+
+def command_z_levels_vel(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    reward_term_name: str,  # 使用哪个奖励项来决定是否调整课程
+    range_multiplier: Sequence[float] = (0.1, 1.0),  # 课程起点和终点
+    delta: float = 0.1,
+    threshold: float = 0.8,
+) -> torch.Tensor:
+    """根据跟踪奖励的表现调整速度命令的范围 - ang_z"""
+    base_velocity_ranges = env.command_manager.get_term("base_velocity").cfg.ranges
+
+    # Get original velocity ranges (ONLY ON FIRST EPISODE)
+    if env.common_step_counter == 0:
+        # 原始范围
+        env._original_ang_z = torch.tensor(base_velocity_ranges.ang_vel_z, device=env.device)
+
+        # 课程起点/终点
+        env._initial_ang_z = env._original_ang_z * range_multiplier[0]
+        env._final_ang_z = env._original_ang_z * range_multiplier[1]
+
+        # 初始化到课程起点
+        base_velocity_ranges.ang_vel_z = env._initial_ang_z.tolist()
+
+    # avoid updating command curriculum at each step since the maximum command is common to all envs
+    if env.common_step_counter % env.max_episode_length == 0:
+        episode_sums = env.reward_manager._episode_sums[reward_term_name]
+        reward_term_cfg = env.reward_manager.get_term_cfg(reward_term_name)
+
+        # 扩大范围的增量：左右各扩一点
+        delta_command = torch.tensor([-delta, delta], device=env.device)
+
+        mean_rew = torch.mean(episode_sums[env_ids]) / env.max_episode_length_s
+        if mean_rew > threshold * reward_term_cfg.weight:
+            # 如果达到了最大值的 80%，就增加命令范围
+            new_ang_z = torch.tensor(base_velocity_ranges.ang_vel_z, device=env.device) + delta_command
+
+            # clip 别越界
+            new_ang_z = torch.clamp(new_ang_z, min=env._final_ang_z[0], max=env._final_ang_z[1])
+
+            # Update ranges
+            base_velocity_ranges.ang_vel_z = new_ang_z.tolist()
+
+    # 返回当前最大 yaw 命令（可用于 log/plot）
+    return torch.tensor(base_velocity_ranges.ang_vel_z[1], device=env.device)
+
+
+# ----------------- LocoTouch -----------------
 class ModifyVelCommandsRangeBasedonReward(ManagerTermBase):
     def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRLEnv):
         super().__init__(cfg, env)
