@@ -31,7 +31,7 @@ class GymDreamWaqRewardsCfg:
         weight=1.5,
         params={
             "command_name": "base_velocity",
-            "tracking_sigma": 0.25,
+            "std": math.sqrt(0.25),
         }
     )
     track_ang_vel_z_exp = RewardTermCfg(
@@ -39,7 +39,7 @@ class GymDreamWaqRewardsCfg:
         weight=0.75,
         params={
             "command_name": "base_velocity",
-            "tracking_sigma": 0.25,
+            "std": math.sqrt(0.25),
         }
     )
     lin_vel_z_l2 = RewardTermCfg(
@@ -77,7 +77,7 @@ class GymDreamWaqRewardsCfg:
         weight=-1.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[f"^(?!.*{FOOT_LINK_NAME}).*"]),
-            "threshold": 0.1, # TODO, 和robotlab差距太大
+            "threshold": 0.1, # isaaclab的默认是1.0
         },
     )
 
@@ -96,16 +96,16 @@ class GymDreamWaqRewardsCfg:
         },
     )
 
-    hip_default_l2 = RewardTermCfg(
-        func=reward_funcs.hip_default_l2,
+    hip_deviation_l2 = RewardTermCfg(
+        func=reward_funcs.hip_deviation_l2,
         weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=HIP_JOINT_NAMES),
         },
     )
 
-    joint_default_l2 = RewardTermCfg(
-        func=reward_funcs.joint_default_l2,
+    joint_deviation_l2 = RewardTermCfg(
+        func=reward_funcs.joint_deviation_l2,
         weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES),

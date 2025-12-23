@@ -14,7 +14,7 @@ import locotouch.mdp as mdp
 from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
 from locotouch.assets.go2w import Go2W_CFG  # 使用 Go2W 机器人
 from locotouch.assets.go2w_transport import Go2W_TRANSPORT_CFG
-from .object_transport_teacher_env_cfg import (
+from locotouch.config.locotouch.object_transport_teacher_env_cfg import (
     ObjectTransportTeacherEnvCfg,
     locotouch_object_transport_play_env_post_init_func,
 )

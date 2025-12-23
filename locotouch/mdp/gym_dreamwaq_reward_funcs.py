@@ -17,158 +17,103 @@ if TYPE_CHECKING:
 from isaaclab.envs.mdp.rewards import *
 
 
+# region -- from isaaclab --
 
-# == gym: _reward_tracking_lin_vel
-def track_lin_vel_xy_exp(
-    env: ManagerBasedRLEnv,
-    tracking_sigma: float,  # 0.25 等效于 std ** 2
-    command_name: str,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """== gym: _reward_tracking_lin_vel, 惩罚当前机器人在X、Y方向速度与命令不一致"""
-    asset: RigidObject = env.scene[asset_cfg.name]
-
-    cmd_xy = env.command_manager.get_command(command_name)[:, :2]
-    vel_xy = asset.data.root_lin_vel_b[:, :2]
-    lin_vel_error = torch.sum(torch.square(cmd_xy - vel_xy), dim=1)
-    reward = torch.exp(-lin_vel_error / tracking_sigma)
-    # 站立 gating: 当 robot 倾斜时, 奖励降低
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
+# def track_lin_vel_xy_exp == gym: _reward_tracking_lin_vel, 惩罚当前机器人在X、Y方向速度与命令不一致
+# params["std"] = math.sqrt(0.25)  # 0.25 等效于 std ** 2
 
 
-def track_ang_vel_z_exp(
-    env: ManagerBasedRLEnv,
-    tracking_sigma: float,  # 0.25 等效于 std ** 2
-    command_name: str,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """ == gym: _reward_tracking_ang_vel, 惩罚当前机器人在角度转向速度与命令不一致"""
-    asset: RigidObject = env.scene[asset_cfg.name]
-
-    cmd_wz = env.command_manager.get_command(command_name)[:, 2]
-    base_wz = asset.data.root_ang_vel_b[:, 2]
-    ang_vel_error = torch.square(cmd_wz - base_wz)
-    reward = torch.exp(-ang_vel_error / tracking_sigma)
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
+# def track_ang_vel_z_exp == gym: _reward_tracking_ang_vel, 惩罚当前机器人在角度转向速度与命令不一致
+# params["std"] = math.sqrt(0.25)  # 0.25 等效
 
 
-def lin_vel_z_l2(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """ == gym: _reward_lin_vel_z, 惩罚机器人在Z轴上的速度 对应现象为机器人上下起伏很大"""
-    asset: RigidObject = env.scene[asset_cfg.name]
-
-    reward = torch.square(asset.data.root_lin_vel_b[:, 2])
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
+# def lin_vel_z_l2 == gym: _reward_lin_vel_z, 惩罚机器人在Z轴上的速度 对应现象为机器人上下起伏很大
 
 
-def ang_vel_xy_l2(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """ == gym: _reward_ang_vel_xy, 惩罚机器人在X轴和Y轴上的角速度 对应现象为遏制机器人左右晃动和前后晃动"""
-
-    asset: RigidObject = env.scene[asset_cfg.name]
-    reward = torch.sum(torch.square(asset.data.root_ang_vel_b[:, :2]), dim=1)
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
+# def ang_vel_xy_l2 == gym: _reward_ang_vel_xy, 惩罚机器人在X轴和Y轴上的角速度 对应现象为遏制机器人左右晃动和前后晃动
 
 
-def flat_orientation_l2(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """ == gym: _reward_orientation, 惩罚机器人倾斜 """
-
-    asset: RigidObject = env.scene[asset_cfg.name]
-    reward = torch.sum(torch.square(asset.data.projected_gravity_b[:, :2]), dim=1)
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
+# def flat_orientation_l2 == gym: _reward_orientation, 鼓励机器人与初始姿态的基座方向一致
 
 
 # def joint_torques_l2 == gym: _reward_torques, 机器人运控各电机输出的力矩的平方和, 让模型找到最省力矩的方案
+# params["asset_cfg"].joint_names = self.joint_names # or leg_joint_names + wheel_joint_names or ".*"
 
 
-def dof_vel_l2(
+# def joint_vel_l2 == gym: _reward_dof_vel, 惩罚关节速度
+
+
+# def joint_acc_l2 == gym: _reward_dof_acc, 惩罚关节加速度
+
+
+# def base_height_l2 == gym: _reward_base_height, 惩罚基座高度不保持在期望的高度上
+# params["target_height"] = 0.4
+# params["sensor_cfg"] = SceneEntityCfg("height_scanner_base")
+# params["asset_cfg"].body_names = ["base"]
+
+
+# undesired_contacts == gym: _reward_collision, 惩罚碰撞
+# params["asset_cfg"].body_names=[f"^(?!.*{FOOT_LINK_NAME}).*"]
+# params["threshold"] = 0.1  # isaaclab 的默认是1.0
+
+
+# def action_rate_l2 == gym: _reward_action_rate, 惩罚动作变化率
+
+
+# def joint_pos_limits == gym: _reward_dof_pos_limits, 惩罚关节位置超出限制
+# params["asset_cfg"].joint_names = leg_joint_names
+
+# endregion
+
+
+# region -- custom reward --
+
+def stand_still_without_cmd(
     env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), # 需要修改 params["asset_cfg"].joint_names = leg_joint_names
-) -> torch.Tensor:
-    """ == gym: _reward_dof_vel, 惩罚关节速度 """
-
-    asset: Articulation = env.scene[asset_cfg.name]
-    reward = torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
-    return reward
-
-
-def dof_acc_l2(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), # 需要修改 params["asset_cfg"].joint_names = leg_joint_names
-) -> torch.Tensor:
-    """ == gym: _reward_dof_acc, 惩罚关节加速度 """
-
-    asset: Articulation = env.scene[asset_cfg.name]
-
-    dof_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]
-
-    if not hasattr(env, "_last_dof_vel"):
-        env._last_dof_vel = dof_vel.clone()
-
-    dof_acc = (dof_vel - env._last_dof_vel) / env.sim.dt
-
-    env._last_dof_vel = dof_vel.clone()
-
-    reward = torch.sum(torch.square(dof_acc), dim=1)
-    return reward
-
-
-def base_height_l2(
-    env: ManagerBasedRLEnv,
-    target_height: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    sensor_cfg: SceneEntityCfg | None = None,
+    command_name: str,
+    command_threshold: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),  # 需要修改 params["asset_cfg"].joint_names = leg_joint_names
     use_gravity_gating: bool = False,
     gating_max: float = 0.7,
 ) -> torch.Tensor:
-    """ == gym: _reward_base_height, 惩罚基座高度不保持在期望的高度上 """
+    """ == gym: _reward_stand_still, 惩罚速度命令很小的时候基座应该维持默认姿态 """
 
-    asset: RigidObject = env.scene[asset_cfg.name]
-
-    if sensor_cfg is not None:
-        sensor: RayCaster = env.scene[sensor_cfg.name]
-        ray_hits = sensor.data.ray_hits_w[..., 2]
-        # 地形可能有凹凸, 计算基座高度均值
-        if torch.isnan(ray_hits).any() or torch.isinf(ray_hits).any() or torch.max(torch.abs(ray_hits)) > 1e6:
-            adjusted_target_height = asset.data.root_link_pos_w[:, 2]
-        else:
-            adjusted_target_height = target_height + torch.mean(ray_hits, dim=1)
-    else:
-        # Use the provided target height directly for flat terrain
-        adjusted_target_height = target_height
-    # Compute the L2 squared penalty
-    reward = torch.square(asset.data.root_pos_w[:, 2] - adjusted_target_height)
-
+    asset: Articulation = env.scene[asset_cfg.name]
+    # compute out of limits constraints
+    diff_angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    reward = torch.sum(torch.abs(diff_angle), dim=1)
+    reward *= torch.linalg.norm(env.command_manager.get_command(command_name), dim=1) < command_threshold
     if use_gravity_gating:
         reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
     return reward
+
+
+def hip_deviation_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),   # params["asset_cfg"].joint_names = hip_joint_names
+) -> torch.Tensor:
+    """ == gym: _reward_hip_default, 惩罚髋关节不在默认位置 """
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    joint_ids = asset_cfg.joint_ids  # 这里配置成 hip joints
+    q = asset.data.joint_pos[:, joint_ids]
+    q0 = asset.data.default_joint_pos[:, joint_ids]
+
+    return torch.sum(torch.square(q - q0), dim=1)
+
+
+def joint_deviation_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),   # params["asset_cfg"].joint_names = leg_joint_names
+) -> torch.Tensor:
+    """ 惩罚各个关节不在默认位置 """
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    joint_ids = asset_cfg.joint_ids
+    q = asset.data.joint_pos[:, joint_ids]
+    q0 = asset.data.default_joint_pos[:, joint_ids]
+
+    return torch.sum(torch.square(q - q0), dim=1)
 
 
 def feet_air_time(
@@ -200,26 +145,6 @@ def feet_air_time(
     return reward
 
 
-def undesired_contacts(
-    env: ManagerBasedRLEnv,
-    threshold: float,
-    sensor_cfg: SceneEntityCfg,
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """ == gym: _reward_collision, 惩罚碰撞 """
-    # extract the used quantities (to enable type-hinting)
-    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    # check if contact force is above threshold
-    net_contact_forces = contact_sensor.data.net_forces_w_history
-    is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
-    # sum over contacts for each environment
-    reward = torch.sum(is_contact, dim=1).float()
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
-
-
 def feet_stumble(
     env: ManagerBasedRLEnv,
     sensor_cfg: SceneEntityCfg,
@@ -240,59 +165,6 @@ def feet_stumble(
     return reward
 
 
-def stand_still_without_cmd(
-    env: ManagerBasedRLEnv,
-    command_name: str,
-    command_threshold: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),  # 需要修改 params["asset_cfg"].joint_names = leg_joint_names
-    use_gravity_gating: bool = False,
-    gating_max: float = 0.7,
-) -> torch.Tensor:
-    """ == gym: _reward_stand_still, 惩罚速度命令很小的时候基座应该维持默认姿态 """
-
-    asset: Articulation = env.scene[asset_cfg.name]
-    # compute out of limits constraints
-    diff_angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
-    reward = torch.sum(torch.abs(diff_angle), dim=1)
-    reward *= torch.linalg.norm(env.command_manager.get_command(command_name), dim=1) < command_threshold
-    if use_gravity_gating:
-        reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, gating_max) / gating_max
-    return reward
-
-
-def dof_pos_limits_l1(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),  # params["asset_cfg"].joint_names = leg_joint_names
-) -> torch.Tensor:
-    """ == gym: _reward_dof_pos_limits, 惩罚关节位置超出限制 """
-    asset: Articulation = env.scene[asset_cfg.name]
-
-    joint_ids = asset_cfg.joint_ids
-    q = asset.data.joint_pos[:, joint_ids]
-    limits = asset.data.joint_pos_limits[joint_ids]
-    lower = limits[:, 0]
-    upper = limits[:, 1]
-
-    out_lower = torch.clamp(q - lower, max=0.0)
-    out_upper = torch.clamp(q - upper, min=0.0)
-
-    return torch.sum(-out_lower + out_upper, dim=1)
-
-
-def hip_default_l2(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),   # params["asset_cfg"].joint_names = hip_joint_names
-) -> torch.Tensor:
-    """ == gym: _reward_hip_default, 惩罚髋关节不在默认位置 """
-    asset: Articulation = env.scene[asset_cfg.name]
-
-    joint_ids = asset_cfg.joint_ids  # 这里配置成 hip joints
-    q = asset.data.joint_pos[:, joint_ids]
-    q0 = asset.data.default_joint_pos[:, joint_ids]
-
-    return torch.sum(torch.square(q - q0), dim=1)
-
-
 def hip_action_l2(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),  # params["asset_cfg"].joint_names = hip_joint_names
@@ -305,18 +177,7 @@ def hip_action_l2(
     return reward
 
 
-def joint_default_l2(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),   # params["asset_cfg"].joint_names = leg_joint_names
-) -> torch.Tensor:
-    """ 惩罚各个关节不在默认位置 """
-    asset: Articulation = env.scene[asset_cfg.name]
 
-    joint_ids = asset_cfg.joint_ids
-    q = asset.data.joint_pos[:, joint_ids]
-    q0 = asset.data.default_joint_pos[:, joint_ids]
-
-    return torch.sum(torch.square(q - q0), dim=1)
 
 
 
