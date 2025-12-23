@@ -31,7 +31,8 @@ def reset_object_state_uniform(
     elif isinstance(asset.cfg.spawn, sim_utils.SphereCfg):
         object_z = asset.cfg.spawn.radius
     elif isinstance(asset.cfg.spawn, sim_utils.CylinderCfg) or isinstance(asset.cfg.spawn, sim_utils.CapsuleCfg):
-        object_z = asset.cfg.spawn.radius
+        # object_z = asset.cfg.spawn.radius
+        object_z = asset.cfg.spawn.height / 2
 
     # poses
     range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
@@ -77,7 +78,8 @@ class ResetObjectStateUniform(ManagerTermBase):
             elif isinstance(asset_cfg, sim_utils.SphereCfg):
                 object_height.append(asset_cfg.radius)
             elif isinstance(asset_cfg, sim_utils.CylinderCfg) or isinstance(asset_cfg, sim_utils.CapsuleCfg):
-                object_height.append(asset_cfg.radius)
+                # object_height.append(asset_cfg.radius)
+                object_height.append(asset_cfg.height / 2)
         self.object_height = torch.tensor(object_height, device=self.asset.device)
 
     def __call__(

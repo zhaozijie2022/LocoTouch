@@ -1,87 +1,14 @@
 from isaaclab.utils import configclass
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+from locotouch.config.go2w.agents.rsl_rl_ppo_cfg import LocomotionGo2WPPORunnerCfg
 
 
 @configclass
-class LocomotionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    num_steps_per_env = 24
-    max_iterations = 30000
-    save_interval = 50
-    empirical_normalization = False
-    policy = RslRlPpoActorCriticCfg(
-        actor_hidden_dims=[512, 256, 128],
-        critic_hidden_dims=[512, 256, 128],
-        activation="elu",
-        init_noise_std=1.0,
-    )
-    algorithm = RslRlPpoAlgorithmCfg(
-        value_loss_coef=1.0,
-        use_clipped_value_loss=True,
-        clip_param=0.2,
-        entropy_coef=0.01,
-        num_learning_epochs=5,
-        num_mini_batches=4,
-        learning_rate=1.0e-3,
-        schedule="adaptive",
-        gamma=0.99,
-        lam=0.95,
-        desired_kl=0.01,
-        max_grad_norm=1.0,
-    )
-    experiment_name = "locotouch_locomotion"
-    logger = "wandb"
-    # logger = "tensorboard"
-    wandb_project = "Locomotion"
-
-
-@configclass
-class VelCurPPORunnerCfg(LocomotionPPORunnerCfg):
+class TransportGo2WTeacherPPORunnerCfg(LocomotionGo2WPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
-        self.experiment_name = "locotouch_vel_cur"
-
-@configclass
-class ObjectTransportTeacherPPORunnerCfg(LocomotionPPORunnerCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.resume = False
-        self.resume_experiment = "locomotion_pretrain"
-        self.experiment_name = "locotouch_object_transport_teacher"
-        self.wandb_project = "Object_Transport"
-
-
-@configclass
-class CylinderTransportTeacherPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.experiment_name = "locotouch_cylinder_transport_teacher"
-
-
-@configclass
-class RandCylinderTransportTeacherPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.experiment_name = "locotouch_rand_cylinder_transport_teacher"
-
-
-@configclass
-class RandCylinderTransportNoTactileTestPPORunnerCfg(ObjectTransportTeacherPPORunnerCfg):
-    """
-    无触觉传感器测试版本的 PPO 配置
-    用于验证不依赖触觉传感器是否能完成负载运输任务
-    """
-    def __post_init__(self):
-        super().__post_init__()
-        self.experiment_name = "locotouch_rand_cylinder_transport_no_tactile_test"
-        self.wandb_project = "Object_Transport_No_Tactile_Test"
-        # 可以根据需要调整其他训练参数
-        # 例如：增加探索噪声、调整学习率等
-
-
-
-
-
-
+        self.experiment_name = "transport_go2w"
+        self.wandb_project = "Go2W_Transport"
+        self.max_iterations = 80000
 
 
 

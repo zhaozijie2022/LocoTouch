@@ -25,7 +25,7 @@ gym.register(
     },
 )
 """
-Go2W 轮腿机器人运载任务 - 16个关节（12腿+4轮）
+Go2W 轮腿机器人运动控制
 
 训练命令:
 python locotouch/scripts/train.py --task Isaac-LocomotionGo2W-v1 --num_envs=4096 --headless

@@ -1,8 +1,3 @@
-"""
-Random Cylinder Transport Task Configuration - Go2W Version
-Go2W 轮腿机器人的随机圆柱体运输任务（无触觉传感器测试版本）
-"""
-
 import math
 import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
@@ -141,14 +136,6 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         self.events.randomize_foot_physics_material.params["restitution_range"] = (0.0, 0.3)
 
         # reset:
-        # 躯干摩擦力
-        # 物体摩擦力
-        # self.events.randomize_object_physics_material = None
-        # 物体质量
-        # self.events.object_mass_randomization = None
-        # 物体初始化位置
-        # self.events.reset_object_position = None
-        # reset_base 延续 object_transport_teacher_env_cfg 中的设定
         self.events.reset_base.params = {
             "pose_range": {
                 "x": (-0.3, 0.3),
@@ -166,6 +153,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 "pitch": (0.0, 0.0),
                 "yaw": (0.0, 0.0),
             }}
+
+        # interval:
         self.events.push_robot.interval_range_s = (6.0, 10.0)
         self.events.push_robot.params = {
             "velocity_range": {
@@ -177,11 +166,6 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 "yaw": (0, 0),
             },
         }
-
-        # self.events.randomize_object_physics_material.params["static_friction_range"] = (0.3, 1.0)
-
-        # interval:
-        # push_robot 延续 object_transport_teacher_env_cfg
 
         # endregion
 

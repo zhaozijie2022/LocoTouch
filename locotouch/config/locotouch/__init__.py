@@ -8,7 +8,6 @@ from . import (
     # rand_cylinder_transport_no_tactile_test_env_cfg,
     object_transport_student_env_cfg
 )
-from ..transport_go2w import transport_go2w_teacher_env_cfg
 
 # ----------------------------------- Locomotion -----------------------------------
 gym.register(
@@ -153,37 +152,5 @@ python locotouch/scripts/train.py --task Isaac-RandCylinderTransportStudent_Sing
 python locotouch/scripts/play.py --task Isaac-RandCylinderTransportStudent_SingleBinaryTac_CNNRNN_Mon-LocoTouch-Play-v1 --num_envs=20
 """
 
-
-# # ----------------------------------- Random Cylinder Transport Go2W Test -----------------------------------
-# gym.register(
-#     id="Isaac-RandCylinderTransportGo2WTeacher-LocoTouch-v1",
-#     entry_point="isaaclab.envs:ManagerBasedRLEnv",
-#     disable_env_checker=True,
-#     kwargs={
-#         "env_cfg_entry_point": rand_cylinder_transport_go2w_teacher_env_cfg.RandCylinderTransportGo2WTeacherEnvCfg,
-#         "rsl_rl_cfg_entry_point": rsl_rl_ppo_cfg.RandCylinderTransportGo2WTeacherPPORunnerCfg,
-#     },
-# )
-#
-# gym.register(
-#     id="Isaac-RandCylinderTransportGo2WTeacher-LocoTouch-Play-v1",
-#     entry_point="isaaclab.envs:ManagerBasedRLEnv",
-#     disable_env_checker=True,
-#     kwargs={
-#         "env_cfg_entry_point": rand_cylinder_transport_go2w_teacher_env_cfg.RandCylinderTransportGo2WTeacherEnvCfg_PLAY,
-#         "rsl_rl_cfg_entry_point": rsl_rl_ppo_cfg.RandCylinderTransportGo2WTeacherPPORunnerCfg,
-#     },
-# )
-# """
-# Go2W 轮腿机器人运载任务 - 16个关节（12腿+4轮）
-#
-# 训练命令:
-# python locotouch/scripts/train.py --task Isaac-RandCylinderTransportGo2WTeacher-LocoTouch-v1 --num_envs=4 --logger=tensorboard
-# python locotouch/scripts/train.py --task Isaac-RandCylinderTransportGo2WTeacher-LocoTouch-v1 --num_envs=4096 --headless
-#
-# 测试命令:
-# python locotouch/scripts/play.py --task Isaac-RandCylinderTransportGo2WTeacher-LocoTouch-Play-v1 --num_envs=20 --load_run=2025-12-17_02-57-15
-#
-# """
 
 

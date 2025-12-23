@@ -21,15 +21,15 @@ Go2W_TRANSPORT_CFG = ArticulationCfg(
             max_depenetration_velocity=1.0, # 最大穿透速度
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=True, # TODO 自碰撞, go1中设置为True, robot_lab中设置为False
+            enabled_self_collisions=False, # TODO 自碰撞, go1中设置为True, robot_lab中设置为False
             solver_position_iteration_count=4,
             solver_velocity_iteration_count=0
         ),
-        collision_props=sim_utils.CollisionPropertiesCfg(
-            collision_enabled=True,
-            contact_offset=1.0e-9,
-            rest_offset=-0.004,
-        ),  # TODO robot_lab 中未显式配置该属性
+        # collision_props=sim_utils.CollisionPropertiesCfg(
+        #     collision_enabled=True,
+        #     contact_offset=1.0e-9,
+        #     rest_offset=-0.004,
+        # ),  # TODO robot_lab 中未显式配置该属性
         joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
             gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
         ),  # 用于 URDF->Isaac 转换时的关节驱动初始增益，这里把 PD 增益置为 0（即让后端驱动配置负责控制）

@@ -1,5 +1,4 @@
 from isaaclab.utils import configclass
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 from locotouch.config.locotouch.agents.rsl_rl_ppo_cfg import LocomotionPPORunnerCfg
 
 
@@ -7,6 +6,8 @@ from locotouch.config.locotouch.agents.rsl_rl_ppo_cfg import LocomotionPPORunner
 class LocomotionGo2WPPORunnerCfg(LocomotionPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
+        self.save_interval = 500
+
         self.experiment_name = "locotouch_go2w"
         self.wandb_project = "Go2W_Locomotion"
         self.max_iterations = 80000
