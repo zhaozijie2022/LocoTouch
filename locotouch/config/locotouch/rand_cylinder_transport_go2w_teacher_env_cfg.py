@@ -18,7 +18,7 @@ from .object_transport_teacher_env_cfg import (
     ObjectTransportTeacherEnvCfg,
     locotouch_object_transport_play_env_post_init_func,
 )
-import locotouch.mdp.robotlab_rewards as robotlab_rewards
+import locotouch.mdp.robotlab_reward_funcs as robotlab_rewards
 
 
 # new-import

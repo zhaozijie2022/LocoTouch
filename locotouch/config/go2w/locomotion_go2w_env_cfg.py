@@ -12,7 +12,7 @@ from isaaclab.utils import configclass
 import numpy as np
 import locotouch.mdp as mdp
 from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
-import locotouch.mdp.robotlab_rewards as robotlab_rewards  # 奖励项实现函数
+import locotouch.mdp.robotlab_reward_funcs as robotlab_rewards  # 奖励项实现函数
 
 from locotouch.assets.go2w import Go2W_CFG as Robot_CFG
 from locotouch.config.base.locomotion_base_env_cfg import LocomotionBaseEnvCfg, smaller_scene_for_playing
@@ -21,290 +21,8 @@ from locotouch.config.base.locomotion_base_env_cfg import LocomotionBaseEnvCfg, 
 # new-import
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 
-
-
-@configclass
-class RobotLabRewardsCfg:
-
-    # General
-    is_terminated = RewardTermCfg(func=robotlab_rewards.is_terminated, weight=0.0)
-
-    # Root penalties
-    lin_vel_z_l2 = RewardTermCfg(func=robotlab_rewards.lin_vel_z_l2, weight=0.0)
-    ang_vel_xy_l2 = RewardTermCfg(func=robotlab_rewards.ang_vel_xy_l2, weight=0.0)
-    flat_orientation_l2 = RewardTermCfg(func=robotlab_rewards.flat_orientation_l2, weight=0.0)
-    base_height_l2 = RewardTermCfg(
-        func=robotlab_rewards.base_height_l2,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=""),
-            "sensor_cfg": SceneEntityCfg("height_scanner_base"),
-            "target_height": 0.0,
-        },
-    )
-    body_lin_acc_l2 = RewardTermCfg(
-        func=robotlab_rewards.body_lin_acc_l2,
-        weight=0.0,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="")},
-    )
-
-    # Joint penalties
-    joint_torques_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_torques_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
-    )
-    joint_vel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_vel_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
-    )
-    joint_acc_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_acc_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
-    )
-
-    def create_joint_deviation_l1_rewterm(self, attr_name, weight, joint_names_pattern):
-        rew_term = RewardTermCfg(
-            func=robotlab_rewards.joint_deviation_l1,
-            weight=weight,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=joint_names_pattern)},
-        )
-        setattr(self, attr_name, rew_term)
-
-    joint_pos_limits = RewardTermCfg(
-        func=robotlab_rewards.joint_pos_limits, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
-    )
-    joint_vel_limits = RewardTermCfg(
-        func=robotlab_rewards.joint_vel_limits,
-        weight=0.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*"), "soft_ratio": 1.0},
-    )
-    joint_power = RewardTermCfg(
-        func=robotlab_rewards.joint_power,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-        },
-    )
-
-    stand_still_without_cmd = RewardTermCfg(
-        func=robotlab_rewards.stand_still_without_cmd,
-        weight=0.0,
-        params={
-            "command_name": "base_velocity",
-            "command_threshold": 0.1,
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-        },
-    )
-
-    joint_pos_penalty = RewardTermCfg(
-        func=robotlab_rewards.joint_pos_penalty,
-        weight=0.0,
-        params={
-            "command_name": "base_velocity",
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-            "stand_still_scale": 5.0,
-            "velocity_threshold": 0.5,
-            "command_threshold": 0.1,
-        },
-    )
-
-    wheel_vel_penalty = RewardTermCfg(
-        func=robotlab_rewards.wheel_vel_penalty,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=""),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-            "command_name": "base_velocity",
-            "velocity_threshold": 0.5,
-            "command_threshold": 0.1,
-        },
-    )
-
-    joint_mirror = RewardTermCfg(
-        func=robotlab_rewards.joint_mirror,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            "mirror_joints": [["FR.*", "RL.*"], ["FL.*", "RR.*"]],
-        },
-    )
-
-    action_mirror = RewardTermCfg(
-        func=robotlab_rewards.action_mirror,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            "mirror_joints": [["FR.*", "RL.*"], ["FL.*", "RR.*"]],
-        },
-    )
-
-    action_sync = RewardTermCfg(
-        func=robotlab_rewards.action_sync,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            "joint_groups": [
-                ["FR_hip_joint", "FL_hip_joint", "RL_hip_joint", "RR_hip_joint"],
-                ["FR_thigh_joint", "FL_thigh_joint", "RL_thigh_joint", "RR_thigh_joint"],
-                ["FR_calf_joint", "FL_calf_joint", "RL_calf_joint", "RR_calf_joint"],
-            ],
-        },
-    )
-
-    # Action penalties
-    applied_torque_limits = RewardTermCfg(
-        func=robotlab_rewards.applied_torque_limits,
-        weight=0.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
-    )
-    action_rate_l2 = RewardTermCfg(func=robotlab_rewards.action_rate_l2, weight=0.0)
-    # smoothness_1 = RewardTermCfg(func=robotlab_rewards.smoothness_1, weight=0.0)  # Same as action_rate_l2
-    # smoothness_2 = RewardTermCfg(func=robotlab_rewards.smoothness_2, weight=0.0)  # Unvaliable now
-
-    # Contact sensor
-    undesired_contacts = RewardTermCfg(
-        func=robotlab_rewards.undesired_contacts,
-        weight=0.0,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-            "threshold": 1.0,
-        },
-    )
-    contact_forces = RewardTermCfg(
-        func=robotlab_rewards.contact_forces,
-        weight=0.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=""), "threshold": 100.0},
-    )
-
-    # Velocity-tracking rewards
-    track_lin_vel_xy_exp = RewardTermCfg(
-        func=robotlab_rewards.track_lin_vel_xy_exp, weight=0.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
-    )
-    track_ang_vel_z_exp = RewardTermCfg(
-        func=robotlab_rewards.track_ang_vel_z_exp, weight=0.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
-    )
-
-    # Others
-    feet_air_time = RewardTermCfg(
-        func=robotlab_rewards.feet_air_time,
-        weight=0.0,
-        params={
-            "command_name": "base_velocity",
-            "threshold": 0.5,
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-        },
-    )
-
-    feet_air_time_variance = RewardTermCfg(
-        func=robotlab_rewards.feet_air_time_variance_penalty,
-        weight=0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="")},
-    )
-
-    feet_gait = RewardTermCfg(
-        func=robotlab_rewards.GaitReward,
-        weight=0.0,
-        params={
-            "std": math.sqrt(0.5),
-            "command_name": "base_velocity",
-            "max_err": 0.2,
-            "velocity_threshold": 0.5,
-            "command_threshold": 0.1,
-            "synced_feet_pair_names": (("", ""), ("", "")),
-            "asset_cfg": SceneEntityCfg("robot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces"),
-        },
-    )
-
-    feet_contact = RewardTermCfg(
-        func=robotlab_rewards.feet_contact,
-        weight=0.0,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-            "command_name": "base_velocity",
-            "expect_contact_num": 2,
-        },
-    )
-
-    feet_contact_without_cmd = RewardTermCfg(
-        func=robotlab_rewards.feet_contact_without_cmd,
-        weight=0.0,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-            "command_name": "base_velocity",
-        },
-    )
-
-    feet_stumble = RewardTermCfg(
-        func=robotlab_rewards.feet_stumble,
-        weight=0.0,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-        },
-    )
-
-    feet_slide = RewardTermCfg(
-        func=robotlab_rewards.feet_slide,
-        weight=0.0,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=""),
-            "asset_cfg": SceneEntityCfg("robot", body_names=""),
-        },
-    )
-
-    feet_height = RewardTermCfg(
-        func=robotlab_rewards.feet_height,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=""),
-            "tanh_mult": 2.0,
-            "target_height": 0.05,
-            "command_name": "base_velocity",
-        },
-    )
-
-    feet_height_body = RewardTermCfg(
-        func=robotlab_rewards.feet_height_body,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=""),
-            "tanh_mult": 2.0,
-            "target_height": -0.3,
-            "command_name": "base_velocity",
-        },
-    )
-
-    feet_distance_y_exp = RewardTermCfg(
-        func=robotlab_rewards.feet_distance_y_exp,
-        weight=0.0,
-        params={
-            "std": math.sqrt(0.25),
-            "asset_cfg": SceneEntityCfg("robot", body_names=""),
-            "stance_width": float,
-        },
-    )
-
-    # feet_distance_xy_exp = RewardTermCfg(
-    #     func=robotlab_rewards.feet_distance_xy_exp,
-    #     weight=0.0,
-    #     params={
-    #         "std": math.sqrt(0.25),
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=""),
-    #         "stance_length": float,
-    #         "stance_width": float,
-    #     },
-    # )
-
-    upward = RewardTermCfg(func=robotlab_rewards.upward, weight=0.0)
-
-    joint_vel_wheel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_vel_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
-    )
-
-    joint_acc_wheel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_acc_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
-    )
-
-    joint_torques_wheel_l2 = RewardTermCfg(
-        func=robotlab_rewards.joint_torques_l2, weight=0.0, params={"asset_cfg": SceneEntityCfg("robot", joint_names="")}
-    )
+from .gym_dreamwaq_rewards_cfg import GymDreamWaqRewardsCfg
+from .robotlab_rewards_cfg import RobotLabRewardsCfg
 
 
 @configclass
@@ -386,8 +104,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         # )
 
         # 参考 robot_lab 和 gym_dreamwaq, 移除历史帧, 是否需要为每个项单独指定?
-        self.observations.policy.history_length = 0
-        self.observations.critic.history_length = 0
+        self.observations.policy.history_length = 6
+        self.observations.critic.history_length = 6
 
         # endregion
 
@@ -512,91 +230,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         # endregion
 
         # region ------------------------------Rewards------------------------------
-        self.rewards: RobotLabRewardsCfg = RobotLabRewardsCfg()
-
-        # General
-        self.rewards.is_terminated.weight = 0
-
-        # Root penalties
-        self.rewards.lin_vel_z_l2.weight = -2.0
-        self.rewards.ang_vel_xy_l2.weight = -0.05
-        self.rewards.flat_orientation_l2.weight = 0
-        self.rewards.base_height_l2.weight = 0
-        self.rewards.base_height_l2.params["target_height"] = 0.40
-        self.rewards.base_height_l2.params["asset_cfg"].body_names = [self.base_link_name]
-        self.rewards.body_lin_acc_l2.weight = 0
-        self.rewards.body_lin_acc_l2.params["asset_cfg"].body_names = [self.base_link_name]
-
-        # Joint penalties
-        self.rewards.joint_torques_l2.weight = -2.5e-5
-        self.rewards.joint_torques_l2.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.joint_torques_wheel_l2.weight = 0
-        self.rewards.joint_torques_wheel_l2.params["asset_cfg"].joint_names = self.wheel_joint_names
-        self.rewards.joint_vel_l2.weight = 0
-        self.rewards.joint_vel_l2.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.joint_vel_wheel_l2.weight = 0
-        self.rewards.joint_vel_wheel_l2.params["asset_cfg"].joint_names = self.wheel_joint_names
-        self.rewards.joint_acc_l2.weight = -2.5e-7
-        self.rewards.joint_acc_l2.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.joint_acc_wheel_l2.weight = -2.5e-9
-        self.rewards.joint_acc_wheel_l2.params["asset_cfg"].joint_names = self.wheel_joint_names
-        # self.rewards.create_joint_deviation_l1_rewterm("joint_deviation_hip_l1", -0.2, [".*_hip_joint"])
-        self.rewards.joint_pos_limits.weight = -5.0
-        self.rewards.joint_pos_limits.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.joint_vel_limits.weight = 0
-        self.rewards.joint_vel_limits.params["asset_cfg"].joint_names = self.wheel_joint_names
-        self.rewards.joint_power.weight = -2e-5
-        self.rewards.joint_power.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.stand_still_without_cmd.weight = -2.0
-        self.rewards.stand_still_without_cmd.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.joint_pos_penalty.weight = -1.0
-        self.rewards.joint_pos_penalty.params["asset_cfg"].joint_names = self.leg_joint_names
-        self.rewards.wheel_vel_penalty.weight = 0
-        self.rewards.wheel_vel_penalty.params["sensor_cfg"].body_names = [self.foot_link_name]
-        self.rewards.wheel_vel_penalty.params["asset_cfg"].joint_names = self.wheel_joint_names
-        self.rewards.joint_mirror.weight = -0.05
-        self.rewards.joint_mirror.params["mirror_joints"] = [
-            ["FR_(hip|thigh|calf).*", "RL_(hip|thigh|calf).*"],
-            ["FL_(hip|thigh|calf).*", "RR_(hip|thigh|calf).*"],
-        ]
-
-        # Action penalties
-        self.rewards.action_rate_l2.weight = -0.01
-
-        # Contact sensor
-        self.rewards.undesired_contacts.weight = -1.0
-        self.rewards.undesired_contacts.params["sensor_cfg"].body_names = [f"^(?!.*{self.foot_link_name}).*"]
-        self.rewards.contact_forces.weight = -1.5e-4
-        self.rewards.contact_forces.params["sensor_cfg"].body_names = [self.foot_link_name]
-
-        # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 3.0
-        self.rewards.track_ang_vel_z_exp.weight = 1.5
-
-        # Others
-        self.rewards.feet_air_time.weight = 0
-        self.rewards.feet_air_time.params["threshold"] = 0.5
-        self.rewards.feet_air_time.params["sensor_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_contact.weight = 0
-        self.rewards.feet_contact.params["sensor_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_contact_without_cmd.weight = 0.1
-        self.rewards.feet_contact_without_cmd.params["sensor_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_stumble.weight = 0
-        self.rewards.feet_stumble.params["sensor_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_slide.weight = 0
-        self.rewards.feet_slide.params["sensor_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_slide.params["asset_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_height.weight = 0
-        self.rewards.feet_height.params["target_height"] = 0.1
-        self.rewards.feet_height.params["asset_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_height_body.weight = 0
-        self.rewards.feet_height_body.params["target_height"] = -0.2
-        self.rewards.feet_height_body.params["asset_cfg"].body_names = [self.foot_link_name]
-        self.rewards.feet_gait.weight = 0
-        self.rewards.feet_gait.params["synced_feet_pair_names"] = (("FL_foot", "RR_foot"), ("FR_foot", "RL_foot"))
-        self.rewards.upward.weight = 1.0
-
-        # If the weight of rewards is 0, set rewards to None
+        # self.rewards: RobotLabRewardsCfg = RobotLabRewardsCfg()
+        self.rewards: GymDreamWaqRewardsCfg = GymDreamWaqRewardsCfg()
         self.disable_zero_weight_rewards()
         # endregion
 
@@ -621,6 +256,32 @@ class LocomotionGo2WEnvCfg_PLAY(LocomotionGo2WEnvCfg):
 
         smaller_scene_for_playing(self)
 
+        # ---------------------------------------------------------------------
+        # Play 时固定 commands 范围（避免 curriculum 训练时的动态范围影响 play）
+        # 方案：直接把 commands 的 ranges 设成“最终想要的范围”，并同步 curriculum 的 range_multiplier
+        # ---------------------------------------------------------------------
 
-class LocomotionGo2WCfgEnvCfg:
-    pass
+        # 你想在 play 用的最大范围（建议与你训练时最终期望的一致）
+        play_command_maximum_ranges = [
+            self.commands.base_velocity.ranges.lin_vel_x[1],   # 1.0
+            self.commands.base_velocity.ranges.lin_vel_y[1],   # 0.5
+            self.commands.base_velocity.ranges.ang_vel_z[1],   # pi/4
+        ]
+
+        # 1) 覆盖 commands ranges
+        self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
+        self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
+        self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
+
+        # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
+        self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
+        self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
+
+        # 3) 避免 play 时 curriculum 还在“缩放 range”
+        #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
+        #    play 直接设成 (1.0, 1.0) 让它不再变化
+        if getattr(self, "curriculum", None) is not None:
+            if getattr(self.curriculum, "command_xy_levels", None) is not None:
+                self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
+            if getattr(self.curriculum, "command_z_levels", None) is not None:
+                self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)

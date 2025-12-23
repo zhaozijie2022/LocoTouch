@@ -31,7 +31,7 @@ Go2W 轮腿机器人运载任务 - 16个关节（12腿+4轮）
 python locotouch/scripts/train.py --task Isaac-LocomotionGo2W-v1 --num_envs=4096 --headless
 
 测试命令:
-python locotouch/scripts/play.py --task Isaac-LocomotionGo2W-Play-v1 --num_envs=20 --load_run=2025-12-17_02-57-15
+python locotouch/scripts/play.py --task Isaac-LocomotionGo2W-Play-v1 --num_envs=20 --load_run=2025-12-23_00-02-59
 
 """
 
