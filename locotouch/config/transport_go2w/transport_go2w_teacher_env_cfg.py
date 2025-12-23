@@ -32,7 +32,7 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
         # size_range = np.array([radius_range, height_range])
         # size_samples = np.random.uniform(size_range[:, 0], size_range[:, 1], (env_num, 2))
 
-        hr_ratio_range = (3.0, 6.0)
+        hr_ratio_range = (3.0, 5.0)
         radii = np.random.uniform(radius_range[0], radius_range[1], size=(env_num, 1))
         hr_ratios = np.random.uniform(hr_ratio_range[0], hr_ratio_range[1], size=(env_num, 1))
         heights = radii * hr_ratios
@@ -102,8 +102,8 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-                "static_friction_range": (0.3, 1.0),
-                "dynamic_friction_range": (1.0, 1.0),
+                "static_friction_range": (0.3, 0.7),
+                "dynamic_friction_range": (0.3, 0.7),
                 "make_consistent": True,
                 "restitution_range": (0.0, 0.2),
             },
@@ -114,8 +114,8 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("object", body_names="Object"),
-                "static_friction_range": (0.3, 1.0),
-                "dynamic_friction_range": (1.0, 1.0),
+                "static_friction_range": (0.3, 0.7),
+                "dynamic_friction_range": (0.3, 0.7),
                 "make_consistent": True,
                 "restitution_range": (0.0, 0.2),
                 "num_buckets": 8000,
