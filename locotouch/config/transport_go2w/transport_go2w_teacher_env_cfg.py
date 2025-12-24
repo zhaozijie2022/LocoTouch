@@ -10,6 +10,7 @@ from locotouch.assets.go2w_transport import Go2W_TRANSPORT_CFG as Robot_CFG
 from locotouch.config.go2w.locomotion_go2w_env_cfg import LocomotionGo2WEnvCfg
 
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
+import locotouch.mdp.transport_go2w_reward_funcs as object_reward_funcs
 
 
 @configclass
@@ -56,7 +57,8 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
                     max_angular_velocity=1000.0,
                     max_linear_velocity=1000.0,
                     max_depenetration_velocity=5.0,
-                    disable_gravity=False,),
+                    disable_gravity=False,
+                ),
                 activate_contact_sensors=True,
                 mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
                 collision_props=sim_utils.CollisionPropertiesCfg(
@@ -133,14 +135,15 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
             },
         )
         # 物体初始化位置
+        # TODO: 修改板子尺寸后, 同步修改物体初始化位置
         self.events.reset_object_position = EventTermCfg(
             func=mdp.ResetObjectStateUniform,
             mode="reset",
             params={
                 "pose_range": {
-                    "x": (-0.05, 0.01),
-                    "y": (-0.03, 0.03),
-                    "z": (0.045, 0.05),
+                    "x": (-0.02, 0.00),
+                    "y": (-0.01, 0.01),
+                    "z": (0.001, 0.002),
                     "roll": (0.0, 0.0),
                     "pitch": (0.0, 0.0),
                     "yaw": (-0.0, 0.0)
@@ -199,7 +202,64 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region ------------------------------Rewards------------------------------
-        # pass
+        self.rewards.object_xy_position = RewardTermCfg(
+            func=object_reward_funcs.object_relative_xy_position_ngt,
+            weight=-0.5,
+            params={
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+                "command_name": "base_velocity",
+                "work_only_when_cmd": True,
+            }
+        )
+        self.rewards.object_z_velocity = RewardTermCfg(
+            func=object_reward_funcs.object_relative_z_velocity_ngt,
+            weight=-0.5,
+            params = {
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+            }
+        )
+        self.rewards.object_roll_pitch_angle = RewardTermCfg(
+            func=object_reward_funcs.object_relative_roll_pitch_angle_ngt,
+            weight=-0.05,
+            params = {
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+            }
+        )
+        self.rewards.object_roll_pitch_velocity = RewardTermCfg(
+            func=object_reward_funcs.object_relative_roll_pitch_velocity_ngt,
+            weight=-0.05,
+            params = {
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+            }
+        )
+        self.rewards.object_dangerous_state = RewardTermCfg(
+            func=object_reward_funcs.object_dangerous_state_ngt, weight=-50.0,
+            params={
+                # TODO: limit
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+                "x_max": 0.125,
+                "y_max": 0.097,
+                "z_min": 0.095,
+                "roll_pitch_max": None,  # in degree
+                "vel_xy_max": None,
+            }
+        )
+
+        self.rewards.object_z_contact = RewardTermCfg(
+            func=object_reward_funcs.object_lose_contact_ngt,
+            weight=0.0,
+            params = {
+                "object_cfg": SceneEntityCfg("object"),
+                "sensor_cfg": SceneEntityCfg("object_contact_sensor", body_names="Object"),
+            }
+        )
+
+
         # endregion
 
 
