@@ -8,7 +8,7 @@ class LocomotionGo2WPPORunnerCfg(LocomotionPPORunnerCfg):
         super().__post_init__()
         self.save_interval = 500
 
-        self.experiment_name = "locotouch_go2w"
+        self.experiment_name = "locomotion_go2w"
         self.wandb_project = "Go2W_Locomotion"
         self.max_iterations = 80000
 

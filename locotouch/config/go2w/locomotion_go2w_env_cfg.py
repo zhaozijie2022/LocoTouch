@@ -67,6 +67,46 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             history_length=3,
             track_air_time=True
         )
+
+        import isaaclab.terrains as terrain_gen
+        from isaaclab.terrains.terrain_generator_cfg import TerrainGeneratorCfg
+        from isaaclab.terrains import TerrainImporterCfg
+        from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
+
+        MY_TERRAINS_CFG = TerrainGeneratorCfg(
+            size=(8.0, 8.0),
+            border_width=20.0,
+            num_rows=10,
+            num_cols=20,
+            horizontal_scale=0.1,
+            vertical_scale=0.005,
+            slope_threshold=0.75,
+            use_cache=False,
+            sub_terrains={
+                "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+                    proportion=1.0, noise_range=(0.02, 0.1), noise_step=0.02, border_width=0.25
+                ),
+            },
+        )
+        self.scene.terrain = TerrainImporterCfg(
+            prim_path="/World/ground",
+            terrain_type="generator",
+            terrain_generator=MY_TERRAINS_CFG,
+            max_init_terrain_level=5,
+            collision_group=-1,
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                friction_combine_mode="multiply",
+                restitution_combine_mode="multiply",
+                static_friction=1.0,
+                dynamic_friction=1.0,
+            ),
+            visual_material=sim_utils.MdlFileCfg(
+                mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+                project_uvw=True,
+                texture_scale=(0.25, 0.25),
+            ),
+            debug_vis=False,
+        )
         # endregion
 
         # region ------------------------------Observations------------------------------
@@ -90,13 +130,13 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             clip=(-100.0, 100.0),
             scale=2.0,  # gym_dreamwaq 中的scale
         )
-        self.observations.policy.height_scan = None
-        # self.observations.policy.height_scan = ObservationTermCfg(
-        #     func=mdp.height_scan,
-        #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-        #     clip=(-1.0, 1.0),
-        #     scale=1.0,
-        # )
+        # self.observations.critic.height_scan = None
+        self.observations.critic.height_scan = ObservationTermCfg(
+            func=mdp.height_scan,
+            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+            clip=(-1.0, 1.0),
+            scale=1.0,
+        )
 
         # 参考 robot_lab 和 gym_dreamwaq, 移除历史帧, 是否需要为每个项单独指定?
         self.observations.policy.history_length = 6
@@ -178,8 +218,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             asset_name="robot",
             resampling_time_range=(10.0, 10.0),
             rel_standing_envs=0.1,
-            final_rel_standing_envs=0.05,
-            initial_zero_command_steps=0,
+            final_rel_standing_envs=0.1,
+            initial_zero_command_steps=50,
             final_initial_zero_command_steps=50,
             rel_heading_envs=0.0,
             heading_command=False,
@@ -187,7 +227,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             # debug_vis=True,
             ranges=mdp.UniformVelocityCommandMultiSamplingCfg.Ranges(
                 lin_vel_x=(-1.0, 1.0),
-                lin_vel_y=(-0.5, 0.5),
+                lin_vel_y=(-0.3, 0.3),
                 ang_vel_z=(-math.pi / 4, math.pi / 4),
             ),
         )
@@ -211,11 +251,40 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 "range_multiplier": (0.1, 1.0),
             },
         )
+        if self.scene.terrain.terrain_type == "generator":
+            self.curriculum.terrain_levels = CurriculumTermCfg(
+                func=mdp.terrain_levels_vel
+            )
+            # TODO: commands的课程开启后不生效, 原因暂时未知
+            self.curriculum.command_xy_levels = None
+            self.curriculum.command_z_levels = None
         # endregion
 
         # region ------------------------------Rewards------------------------------
         # self.rewards: RobotLabRewardsCfg = RobotLabRewardsCfg()
         self.rewards: GymDreamWaqRewardsCfg = GymDreamWaqRewardsCfg()
+
+
+        import isaaclab.envs.mdp.rewards as reward_funcs
+        self.rewards.lin_vel_z_l2.weight = -2.0
+        self.rewards.joint_torques_l2.weight = -2.0e-4
+        self.rewards.joint_acc_l2 = RewardTermCfg(
+            func=reward_funcs.joint_acc_l2,
+            weight=-2.5e-7,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=self.leg_joint_names)
+            }
+        )
+        self.rewards.joint_wheel_acc_l2 = RewardTermCfg(
+            func=reward_funcs.joint_acc_l2,
+            weight=-2.5e-9,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=self.wheel_joint_names)
+            }
+        )
+        self.rewards.joint_deviation_l2.weight = -0.1
+        self.rewards.hip_deviation_l2.weight = -0.3
+        self.rewards.stand_still_without_cmd.weight = -0.25
         self.disable_zero_weight_rewards()
         # endregion
 
@@ -269,3 +338,29 @@ class LocomotionGo2WEnvCfg_PLAY(LocomotionGo2WEnvCfg):
                 self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
             if getattr(self.curriculum, "command_z_levels", None) is not None:
                 self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
+
+
+        # # ---------------------------------------------------------------------
+        # # Play：把 terrain 难度拉满（初始化就放到最难那一行），并关闭 terrain curriculum
+        # # ---------------------------------------------------------------------
+        # if self.scene.terrain.terrain_type ==  "generator":
+        #     # 1) 计算最大 terrain level：一般对应 num_rows-1
+        #     tg = self.scene.terrain.terrain_generator
+        #     max_level = int(getattr(tg, "num_rows", 1)) - 1
+        #     max_level = max(max_level, 0)
+        #
+        #     # 2) 初始化等级拉满：所有 env reset 时从最高 level 里采样
+        #     self.scene.terrain.max_init_terrain_level = max_level
+        #
+        # # 3) 关掉 terrain 的 curriculum（否则它可能因为 move_down 又降回去）
+        # if getattr(self, "curriculum", None) is not None:
+        #     # 你这里的 term 名叫 terrain_levels（来自 terrain_levels = CurrTerm(...)）
+        #     if getattr(self.curriculum, "terrain_levels", None) is not None:
+        #         # 最稳妥：直接禁用这个 term（不同版本字段名可能略有差异）
+        #         if hasattr(self.curriculum.terrain_levels, "enable"):
+        #             self.curriculum.terrain_levels.enable = False
+        #         elif hasattr(self.curriculum.terrain_levels, "enabled"):
+        #             self.curriculum.terrain_levels.enabled = False
+        #         else:
+        #             # 实在没有开关字段，就把它置空（部分配置系统支持）
+        #             self.curriculum.terrain_levels = None
