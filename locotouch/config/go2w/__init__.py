@@ -31,7 +31,7 @@ Go2W 轮腿机器人运动控制
 python locotouch/scripts/train.py --task Isaac-LocomotionGo2W-v1 --num_envs=4096 --headless
 
 测试命令:
-python locotouch/scripts/play.py --task Isaac-LocomotionGo2W-Play-v1 --num_envs=20 --load_run=2025-12-23_00-02-59
+python locotouch/scripts/play.py --task Isaac-LocomotionGo2W-Play-v1 --num_envs=20 --load_run=2026-01-13_19-39-45
 
 """
 

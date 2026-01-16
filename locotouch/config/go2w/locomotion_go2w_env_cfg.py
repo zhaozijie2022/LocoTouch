@@ -84,7 +84,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             use_cache=False,
             sub_terrains={
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=1.0, noise_range=(0.02, 0.1), noise_step=0.02, border_width=0.25
+                    proportion=1.0, noise_range=(0.00, 0.05), noise_step=0.01, border_width=0.25
                 ),
             },
         )
@@ -120,6 +120,13 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             "robot", joint_names=self.wheel_joint_names
         )
 
+        # 移除 params={"action_name": "joint_pos"}, 包括轮子动作
+        self.observations.last_action = ObservationTermCfg(
+            func=mdp.last_action,
+            scale=1.0,
+            history_length=6
+        )
+
         # 参考 gym_dreamwaq, 不添加 base_lin_vel, 基座线速度
         self.observations.policy.base_lin_vel = None # 本来 locomotion_base_env_cfg 里也没有
         self.observations.policy.height_scan = None
@@ -138,7 +145,6 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             scale=1.0,
         )
 
-        # 参考 robot_lab 和 gym_dreamwaq, 移除历史帧, 是否需要为每个项单独指定?
         self.observations.policy.history_length = 6
         self.observations.critic.history_length = 6
 
@@ -149,7 +155,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         self.actions.joint_pos = mdp.JointPositionActionCfg(
             asset_name="robot",
             joint_names=self.leg_joint_names,
-            scale={".*_hip_joint": 0.125, "^(?!.*_hip_joint).*": 0.25},  # gym_dreamwaq 统一为 0.25, 这里从robot_lab中继承
+            scale=0.25,
             use_default_offset=True,
             clip={".*": (-100.0, 100.0)},
             preserve_order=True
@@ -170,37 +176,72 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         # startup:
         # 躯干质量随机, body_name trunk -> base
         self.events.randomize_trunk_mass.params["asset_cfg"] = SceneEntityCfg("robot", body_names="base")
+
         # 足端摩擦力
-        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.6, 1.5)
-        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.6, 1.5)
+        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.3, 1.0)
+        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.3, 0.8)
         self.events.randomize_foot_physics_material.params["restitution_range"] = (0.0, 0.3)
+
+        # 基座质心
+        self.events.randomize_com_positions = EventTermCfg(
+            func=mdp.randomize_rigid_body_com,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+                "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.05, 0.05)},
+            },
+        )
 
         # reset:
         self.events.reset_base.params = {
             "pose_range": {
                 "x": (-0.3, 0.3),
                 "y": (-0.3, 0.3),
-                "z": (0.0, 0.0),
+                "z": (0.0, 0.2),
                 "roll": (-0.0, 0.0),
                 "pitch": (-0.0, 0.0),
                 "yaw": (-0.0, 0.0),
             },
             "velocity_range": {
-                "x": (-0.01, 0.01),
-                "y": (-0.01, 0.01),
+                "x": (-0.5, 0.5),
+                "y": (-0.15, 0.15),
                 "z": (0.0, 0.0),
                 "roll": (0.0, 0.0),
                 "pitch": (0.0, 0.0),
                 "yaw": (0.0, 0.0),
-            }}
+            }
+        }
+
+        self.events.randomize_apply_external_force_torque = EventTermCfg(
+            func=mdp.apply_external_force_torque,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+                "force_range": (-10.0, 10.0),
+                "torque_range": (-10.0, 10.0),
+            },
+        )
+
+        # 电机的PID参数
+        self.events.randomize_actuator_gains = EventTermCfg(
+            func=mdp.randomize_actuator_gains,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+                "stiffness_distribution_params": (0.8, 1.2),
+                "damping_distribution_params": (0.8, 1.2),
+                "operation": "scale",
+                "distribution": "log_uniform",
+            },
+        )
 
         # interval:
         self.events.push_robot.interval_range_s = (6.0, 10.0)
         self.events.push_robot.params = {
             "velocity_range": {
-                "x": (-0.4, 0.4),
+                "x": (-0.5, 0.5),
                 "y": (-0.3, 0.3),
-                "z": (-0.1, 0.1),
+                "z": (-0.35, 0.35),
                 "roll": (0, 0),
                 "pitch": (0, 0),
                 "yaw": (0, 0),

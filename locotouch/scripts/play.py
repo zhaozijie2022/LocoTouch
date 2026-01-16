@@ -129,8 +129,8 @@ def main():
     # print("Shape of the observation: ", obs[0].shape)
     timestep = 0
     # simulate environment
-    print_obs = False
-    # print_obs = True
+    # print_obs = False
+    print_obs = True
     mask_obs = False
     # mask_obs = True
     dones = None
@@ -138,7 +138,7 @@ def main():
         # run everything in inference mode
         with torch.inference_mode():
             # term_dims = [3, 3, 3, 12, 12, 12, 3, 3, 4, 3]
-            term_dims = [3, 3, 3, 12, 12, 12, 13]
+            term_dims = [3, 3, 3, 16, 16, 12]
             term_histories = [6] * len(term_dims)
             term_begin_idx = [sum(term_dim*term_histories for term_dim, term_histories in zip(term_dims[:i], term_histories[:i]) ) for i in range(len(term_dims))]
             term_end_idx = [sum(term_dim*term_histories for term_dim, term_histories in zip(term_dims[:i+1], term_histories[:i+1]) ) for i in range(len(term_dims))]
@@ -146,25 +146,25 @@ def main():
             # print("term_begin_idx: ", term_begin_idx)
             # print("term_end_idx: ", term_end_idx)
 
-            obj_term_dims = [3, 3, 4, 3]
-            obj_state_dim = sum(obj_term_dims)
-            obj_state_his_len = term_histories[-1]
-            obj_term_begin_idx = [sum(term_dim for term_dim in obj_term_dims[:i]) for i in range(len(obj_term_dims))]
-            obj_term_end_idx = [sum(term_dim for term_dim in obj_term_dims[:i+1]) for i in range(len(obj_term_dims))]
+            # obj_term_dims = [3, 3, 4, 3]
+            # obj_state_dim = sum(obj_term_dims)
+            # obj_state_his_len = term_histories[-1]
+            # obj_term_begin_idx = [sum(term_dim for term_dim in obj_term_dims[:i]) for i in range(len(obj_term_dims))]
+            # obj_term_end_idx = [sum(term_dim for term_dim in obj_term_dims[:i+1]) for i in range(len(obj_term_dims))]
             # print("*" * 80)
             # print("obj_term_begin_idx: ", obj_term_begin_idx)
             # print("obj_term_end_idx: ", obj_term_end_idx)
 
             # get_obj_term_idx = lambda i: sum(term_dim*term_histories for term_dim, term_histories in zip(term_dims[:i], term_histories[:i])) + 6*6
             if print_obs:
-                # print("Observation: ", obs[0])
-                # print("*" * 80)
-                # print("velocity_commands: \n", obs[0][term_begin_idx[0]:term_end_idx[0]])
-                # print("base_ang_vel: \n", obs[0][term_begin_idx[1]:term_end_idx[1]])
-                # print("projected_gravity: \n", obs[0][term_begin_idx[2]:term_end_idx[2]])
-                # print("joint_pos: \n", obs[0][term_begin_idx[3]:term_end_idx[3]])
-                # print("joint_vel: \n", obs[0][term_begin_idx[4]:term_end_idx[4]])
-                # print("last_action: \n", obs[0][term_begin_idx[5]:term_end_idx[5]])
+                print("Observation: ", obs[0])
+                print("*" * 80)
+                print("velocity_commands: \n", obs[0][term_begin_idx[0]:term_end_idx[0]])
+                print("base_ang_vel: \n", obs[0][term_begin_idx[1]:term_end_idx[1]])
+                print("projected_gravity: \n", obs[0][term_begin_idx[2]:term_end_idx[2]])
+                print("joint_pos: \n", obs[0][term_begin_idx[3]:term_end_idx[3]])
+                print("joint_vel: \n", obs[0][term_begin_idx[4]:term_end_idx[4]])
+                print("last_action: \n", obs[0][term_begin_idx[5]:term_end_idx[5]])
                 # print("last_actiono_max_value:", torch.max(torch.abs(obs[:, term_begin_idx[5]:term_end_idx[5]])))
                 if torch.max(torch.abs(obs[:, term_begin_idx[5]:term_end_idx[5]])) > 1:
                     print(torch.max(torch.abs(obs[:, term_begin_idx[5]:term_end_idx[5]])))
@@ -193,7 +193,7 @@ def main():
 
             # agent stepping
             actions = policy(obs)
-            # print("Actions: ", actions[0])
+            print("Actions: ", actions[0])
             # input("Press Enter to continue...")
             # env stepping
             obs, _, dones, extras = env.step(actions)
