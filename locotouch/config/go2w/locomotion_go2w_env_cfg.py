@@ -16,7 +16,7 @@ from locotouch.config.base.locomotion_base_env_cfg import LocomotionBaseEnvCfg, 
 # new-import
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 
-from .gym_dreamwaq_rewards_cfg import GymDreamWaqRewardsCfg
+from .legged_gym_rewards_cfg import GymDreamWaqRewardsCfg
 from .robotlab_rewards_cfg import RobotLabRewardsCfg
 
 
@@ -184,9 +184,20 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         self.events.randomize_trunk_mass.params["asset_cfg"] = SceneEntityCfg("robot", body_names="base")
 
         # 足端摩擦力
-        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.3, 1.0)
-        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.3, 0.8)
-        self.events.randomize_foot_physics_material.params["restitution_range"] = (0.0, 0.3)
+        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.1, 1.0)
+        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.1, 0.8)
+        self.events.randomize_foot_physics_material.params["restitution_range"] = (0.0, 0.5)
+
+        # 关节惯量随机
+        self.events.randomize_rigid_body_inertia = EventTermCfg(
+            func=mdp.randomize_rigid_body_inertia,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+                "inertia_distribution_params": (0.5, 1.5),
+                "operation": "scale",
+            },
+        )
 
         # 基座质心
         self.events.randomize_com_positions = EventTermCfg(

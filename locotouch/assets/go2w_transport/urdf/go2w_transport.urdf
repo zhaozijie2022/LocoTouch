@@ -1422,7 +1422,7 @@ Stephen Brawner (brawner@gmail.com)
         rpy="0 0 0" />
       <geometry>
         <mesh 
-        filename="../dae/platform.STL" />
+        filename="../dae/platform.STL" scale="0.001 0.001 0.001" />
       </geometry>
        <material
         name="">
@@ -1433,7 +1433,7 @@ Stephen Brawner (brawner@gmail.com)
     <collision>
     <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="../dae/platform.STL" />
+        <mesh filename="../dae/platform.STL" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -1467,6 +1467,6 @@ Stephen Brawner (brawner@gmail.com)
     <parent link="base"/>
     <child link="platform"/>
     <!-- <origin xyz="-0.18 -0.107 0.32" rpy="0 1.5708 0"/> -->
-    <origin xyz="-0.18 -0.107 0.32" rpy="0 1.5708 0"/>
+    <origin xyz="-0.18 -0.107 0.3365" rpy="0 1.5708 0"/>
   </joint> 
 </robot>

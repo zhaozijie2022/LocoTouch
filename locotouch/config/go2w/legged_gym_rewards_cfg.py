@@ -1,7 +1,7 @@
 import math
 from isaaclab.managers import SceneEntityCfg, RewardTermCfg
 from isaaclab.utils import configclass
-import locotouch.mdp.gym_dreamwaq_reward_funcs as reward_funcs  # 奖励项实现函数
+import locotouch.mdp.legged_gym_reward_funcs as reward_funcs  # 奖励项实现函数
 
 
 LEG_JOINT_NAMES = [
