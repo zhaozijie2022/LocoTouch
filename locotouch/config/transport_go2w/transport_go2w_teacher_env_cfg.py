@@ -22,18 +22,19 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
         # ========== 机器人配置 ==========
         # increase the rigid patch count for more objects
         self.scene.replicate_physics = False
+        self.scene.robot = Robot_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # self.sim.physx.gpu_max_rigid_patch_count = 4096 * 4096
 
         # region ------------------------------Scene------------------------------
         # 增加物体和接触传感器
         env_num = self.scene.num_envs
-        radius_range = (0.025, 0.075)
+        radius_range = (0.05, 0.05)  # (0.025, 0.075)
 
         # height_range = (0.15, 0.25)
         # size_range = np.array([radius_range, height_range])
         # size_samples = np.random.uniform(size_range[:, 0], size_range[:, 1], (env_num, 2))
 
-        hr_ratio_range = (3.0, 5.0)
+        hr_ratio_range = (4.0, 4.0)  # (3.0, 6.0)
         radii = np.random.uniform(radius_range[0], radius_range[1], size=(env_num, 1))
         hr_ratios = np.random.uniform(hr_ratio_range[0], hr_ratio_range[1], size=(env_num, 1))
         heights = radii * hr_ratios
@@ -48,8 +49,10 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
                         radius=float(size_samples[i, 0]),
                         height=float(size_samples[i, 1]),
                         axis="Z",
-                        visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(map(float, color_samples[i]))),) # type: ignore
-                    for i in range(env_num) ],
+                        visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(map(float, color_samples[i]))),
+                    )  # type: ignore
+                    for i in range(env_num)
+                ],
                 random_choice=False,  # 表示不是随机复用, 而是每个环境一个独立的object
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(
                     solver_position_iteration_count=16,
@@ -66,9 +69,9 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
                     contact_offset=0.005,
                     rest_offset=0.0
                 ),
-                ),
-                init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
-            )
+            ),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+        )
 
         self.scene.object_contact_sensor = ContactSensorCfg(
             prim_path="{ENV_REGEX_NS}/Object",  # net_history_forces: (N, 3, 1, 3)
@@ -80,8 +83,9 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
         # region ------------------------------Observations------------------------------
         # 添加物体相关的观测, 标准 13维状态, 未碰撞时为 non_contact_obs
         from locotouch.config.locotouch.object_transport_teacher_env_cfg import NoisyObjectStateCfg
-        noisy_object_cfg = NoisyObjectStateCfg()
-        self.observations.policy.object_state = noisy_object_cfg.object_state
+        # 移除 policy 中与物体相关的观测
+        # noisy_object_cfg = NoisyObjectStateCfg()
+        # self.observations.policy.object_state = noisy_object_cfg.object_state
 
         denoised_object_cfg = NoisyObjectStateCfg()
         denoised_object_cfg.object_state.params["add_uniform_noise"] = False
@@ -93,7 +97,7 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region ------------------------------Events------------------------------
-        
+
         # startup:
 
         # reset:
@@ -104,8 +108,8 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-                "static_friction_range": (0.3, 0.7),
-                "dynamic_friction_range": (0.3, 0.7),
+                "static_friction_range": (1.0, 1.0),
+                "dynamic_friction_range": (1.0, 1.0),
                 "make_consistent": True,
                 "restitution_range": (0.0, 0.2),
             },
@@ -116,34 +120,33 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("object", body_names="Object"),
-                "static_friction_range": (0.3, 0.7),
-                "dynamic_friction_range": (0.3, 0.7),
+                "static_friction_range": (0.15, 0.5),
+                "dynamic_friction_range": (0.15, 0.5),
                 "make_consistent": True,
                 "restitution_range": (0.0, 0.2),
                 "num_buckets": 8000,
             },
         )
         # 物体质量
-        self.events.object_mass_randomization = EventTermCfg(
-            func=mdp.randomize_rigid_body_mass,
-            mode="reset",
-            params={
-                "asset_cfg": SceneEntityCfg("object", body_names="Object"),
-                "mass_distribution_params": (0.5, 1.5),
-                "operation": "scale",
-                "distribution": "uniform",
-            },
-        )
+        # self.events.object_mass_randomization = EventTermCfg(
+        #     func=mdp.randomize_rigid_body_mass,
+        #     mode="reset",
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+        #         "mass_distribution_params": (1.0, 1.0),
+        #         "operation": "scale",
+        #         "distribution": "uniform",
+        #     },
+        # )
         # 物体初始化位置
-        # TODO: 修改板子尺寸后, 同步修改物体初始化位置
         self.events.reset_object_position = EventTermCfg(
             func=mdp.ResetObjectStateUniform,
             mode="reset",
             params={
                 "pose_range": {
-                    "x": (-0.02, 0.00),
-                    "y": (-0.01, 0.01),
-                    "z": (0.001, 0.002),
+                    "x": (-0.00, 0.00),
+                    "y": (-0.00, 0.00),
+                    "z": (0.05, 0.05),
                     "roll": (0.0, 0.0),
                     "pitch": (0.0, 0.0),
                     "yaw": (-0.0, 0.0)
@@ -180,31 +183,42 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
         # 保留 locomotion_base_env_cfg 中的所有 termination
         self.terminations.object_bad_orientation = TerminationTermCfg(
             func=mdp.bad_roll,
-            params={"asset_cfg": SceneEntityCfg("object"),
-                    "limit_angle": math.pi / 3,
-                    },
+            params={
+                "asset_cfg": SceneEntityCfg("object"),
+                "limit_angle": math.pi / 6,
+            },
         )
         self.terminations.object_below_robot = TerminationTermCfg(
             func=mdp.object_below_robot,
-            params={"robot_cfg": SceneEntityCfg("robot"),
-                    "object_cfg": SceneEntityCfg("object"),
-                    },
-            )
+            params={
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+            },
+        )
 
         # endregion
 
         # region ------------------------------Commands------------------------------
-        # pass
+        # 加大范围
+        self.commands.base_velocity.ranges.lin_vel_x = (-2.0, 2.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.rel_standing_envs = 0.1
+        self.commands.base_velocity.final_rel_standing_envs = 0.1
+        self.commands.base_velocity.initial_zero_command_steps = 50
+        self.commands.base_velocity.final_initial_zero_command_steps = 50
+        self.commands.base_velocity.resampling_time_range = (3.0, 3.0)
+
         # endregion
 
         # region ------------------------------Curriculums------------------------------
-        # pass
+        self.curriculum.command_z_levels = None
         # endregion
 
         # region ------------------------------Rewards------------------------------
         self.rewards.object_xy_position = RewardTermCfg(
             func=object_reward_funcs.object_relative_xy_position_ngt,
-            weight=-0.5,
+            weight=-0.0,
             params={
                 "robot_cfg": SceneEntityCfg("robot"),
                 "object_cfg": SceneEntityCfg("object"),
@@ -212,53 +226,49 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
                 "work_only_when_cmd": True,
             }
         )
+        self.rewards.object_xy_velocity = RewardTermCfg(
+            func=object_reward_funcs.object_relative_xy_velocity_ngt,
+            weight=-10.0,
+            params={
+                "robot_cfg": SceneEntityCfg("robot"),
+                "object_cfg": SceneEntityCfg("object"),
+            }
+        )
         self.rewards.object_z_velocity = RewardTermCfg(
             func=object_reward_funcs.object_relative_z_velocity_ngt,
             weight=-0.5,
-            params = {
+            params={
                 "robot_cfg": SceneEntityCfg("robot"),
                 "object_cfg": SceneEntityCfg("object"),
             }
         )
         self.rewards.object_roll_pitch_angle = RewardTermCfg(
             func=object_reward_funcs.object_relative_roll_pitch_angle_ngt,
-            weight=-0.05,
-            params = {
+            weight=-1.0,
+            params={
                 "robot_cfg": SceneEntityCfg("robot"),
                 "object_cfg": SceneEntityCfg("object"),
             }
         )
         self.rewards.object_roll_pitch_velocity = RewardTermCfg(
             func=object_reward_funcs.object_relative_roll_pitch_velocity_ngt,
-            weight=-0.05,
-            params = {
-                "robot_cfg": SceneEntityCfg("robot"),
-                "object_cfg": SceneEntityCfg("object"),
-            }
-        )
-        self.rewards.object_dangerous_state = RewardTermCfg(
-            func=object_reward_funcs.object_dangerous_state_ngt, weight=-50.0,
+            weight=-0.5,
             params={
-                # TODO: limit
                 "robot_cfg": SceneEntityCfg("robot"),
                 "object_cfg": SceneEntityCfg("object"),
-                "x_max": 0.125,
-                "y_max": 0.097,
-                "z_min": 0.095,
-                "roll_pitch_max": None,  # in degree
-                "vel_xy_max": None,
             }
         )
 
         self.rewards.object_z_contact = RewardTermCfg(
             func=object_reward_funcs.object_lose_contact_ngt,
-            weight=0.0,
-            params = {
+            weight=-0.5,
+            params={
                 "object_cfg": SceneEntityCfg("object"),
                 "sensor_cfg": SceneEntityCfg("object_contact_sensor", body_names="Object"),
             }
         )
 
+        self.rewards.undesired_contacts.params["sensor_cfg"] = SceneEntityCfg("contact_forces", body_names=[".*thigh", ".*calf"])
 
         # endregion
 
@@ -266,12 +276,46 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
 @configclass
 class TransportGo2WTeacherEnvCfg_PLAY(TransportGo2WTeacherEnvCfg):
     """测试/可视化版本"""
+
     def __post_init__(self) -> None:
         self.scene.num_envs = 20
         super().__post_init__()
 
         from locotouch.assets.go2w_transport import Go2W_TRANSPORT_PLAY_CFG as Robot_PLAY_CFG
         self.scene.robot = Robot_PLAY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+        from locotouch.config.base.locomotion_base_env_cfg import smaller_scene_for_playing
+        smaller_scene_for_playing(self)
+
+        # ---------------------------------------------------------------------
+        # Play 时固定 commands 范围（避免 curriculum 训练时的动态范围影响 play）
+        # 方案：直接把 commands 的 ranges 设成“最终想要的范围”，并同步 curriculum 的 range_multiplier
+        # ---------------------------------------------------------------------
+
+        # 你想在 play 用的最大范围（建议与你训练时最终期望的一致）
+        play_command_maximum_ranges = [
+            self.commands.base_velocity.ranges.lin_vel_x[1],  # 1.0
+            self.commands.base_velocity.ranges.lin_vel_y[1],  # 0.5
+            self.commands.base_velocity.ranges.ang_vel_z[1],  # pi/4
+        ]
+
+        # 1) 覆盖 commands ranges
+        self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
+        self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
+        self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
+
+        # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
+        self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
+        self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
+
+        # 3) 避免 play 时 curriculum 还在“缩放 range”
+        #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
+        #    play 直接设成 (1.0, 1.0) 让它不再变化
+        if getattr(self, "curriculum", None) is not None:
+            if getattr(self.curriculum, "command_xy_levels", None) is not None:
+                self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
+            if getattr(self.curriculum, "command_z_levels", None) is not None:
+                self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
 
 
 

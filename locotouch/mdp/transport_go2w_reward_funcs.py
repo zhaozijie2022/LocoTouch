@@ -29,15 +29,15 @@ def object_relative_xy_position_ngt(
     return rel_distance
 
 
-# def object_relative_xy_velocity_ngt(
-#     env: ManagerBasedRLEnv,
-#     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-#     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
-#     ) -> torch.Tensor:
-#     robot: RigidObject = env.scene[robot_cfg.name]
-#     obj: RigidObject = env.scene[object_cfg.name]
-#     lin_vel_in_robot_frame = quat_apply_inverse(robot.data.root_quat_w, obj.data.root_lin_vel_w - robot.data.root_lin_vel_w)
-#     return torch.sum(torch.square(lin_vel_in_robot_frame[:, :2]), dim=1)
+def object_relative_xy_velocity_ngt(
+    env: ManagerBasedRLEnv,
+    robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+) -> torch.Tensor:
+    robot: RigidObject = env.scene[robot_cfg.name]
+    obj: RigidObject = env.scene[object_cfg.name]
+    lin_vel_in_robot_frame = quat_apply_inverse(robot.data.root_quat_w, obj.data.root_lin_vel_w - robot.data.root_lin_vel_w)
+    return torch.sum(torch.square(lin_vel_in_robot_frame[:, :2]), dim=1)
 
 
 def object_relative_z_velocity_ngt(
