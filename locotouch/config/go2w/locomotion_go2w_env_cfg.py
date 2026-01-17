@@ -84,7 +84,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             use_cache=False,
             sub_terrains={
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=1.0, noise_range=(0.00, 0.05), noise_step=0.01, border_width=0.25
+                    proportion=1.0, noise_range=(0.00, 0.025), noise_step=0.005, border_width=0.25
                 ),
             },
         )
@@ -121,7 +121,13 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         )
 
         # 移除 params={"action_name": "joint_pos"}, 包括轮子动作
-        self.observations.last_action = ObservationTermCfg(
+        self.observations.policy.last_action = ObservationTermCfg(
+            func=mdp.last_action,
+            scale=1.0,
+            history_length=6
+        )
+
+        self.observations.critic.last_action = ObservationTermCfg(
             func=mdp.last_action,
             scale=1.0,
             history_length=6
@@ -195,8 +201,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         # reset:
         self.events.reset_base.params = {
             "pose_range": {
-                "x": (-0.3, 0.3),
-                "y": (-0.3, 0.3),
+                "x": (-0.0, 0.0),
+                "y": (-0.0, 0.0),
                 "z": (0.0, 0.2),
                 "roll": (-0.0, 0.0),
                 "pitch": (-0.0, 0.0),
@@ -205,12 +211,22 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             "velocity_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.15, 0.15),
-                "z": (0.0, 0.0),
-                "roll": (0.0, 0.0),
-                "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
+                "z": (-0.2, 0.2),
+                "roll": (-0.35, 0.35),
+                "pitch": (-0.35, 0.35),
+                "yaw": (-0.35, 0.35),
             }
         }
+
+        self.events.randomize_reset_joints = EventTermCfg(
+            func=mdp.reset_joints_by_scale,
+            # func=mdp.reset_joints_by_offset,
+            mode="reset",
+            params={
+                "position_range": (1.0, 1.0),
+                "velocity_range": (0.0, 0.0),
+            },
+        )
 
         self.events.randomize_apply_external_force_torque = EventTermCfg(
             func=mdp.apply_external_force_torque,
