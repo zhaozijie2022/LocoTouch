@@ -95,11 +95,11 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 # TODO 仅x方向的wave
                 # TODO 减速带地形
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
-                    proportion=0.3, noise_range=(0.0, 0.1), noise_step=0.005,
+                    proportion=0.3, noise_range=(0.0, 0.05), noise_step=0.005,
                     frequency=10.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
                 ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.3, noise_range=(0.0, 0.05), noise_step=0.01, border_width=0.25
+                    proportion=0.3, noise_range=(0.0, 0.05), noise_step=0.005, border_width=0.25
                 ),
             },
             seed=1,
@@ -271,8 +271,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-                "stiffness_distribution_params": (0.5, 2.0),
-                "damping_distribution_params": (0.5, 2.0),
+                "stiffness_distribution_params": (0.8, 1.2),
+                "damping_distribution_params": (0.8, 1.2),
                 "operation": "scale",
                 "distribution": "log_uniform",
             },
