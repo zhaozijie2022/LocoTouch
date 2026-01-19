@@ -385,7 +385,7 @@ class OnPolicyRunner:
         torch.save(saved_dict, path)
 
         # Upload model to external logging service
-        if self.logger_type in ["neptune", "wandb"]:
+        if self.logger_type in ["neptune"]:
             self.writer.save_model(path, self.current_learning_iteration)
 
     def load(self, path: str, load_optimizer: bool = True, pretrained: bool = False):

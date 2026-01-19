@@ -72,6 +72,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         from isaaclab.terrains.terrain_generator_cfg import TerrainGeneratorCfg
         from isaaclab.terrains import TerrainImporterCfg
         from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
+        import locotouch.terrains as custom_terrain_gen
 
         MY_TERRAINS_CFG = TerrainGeneratorCfg(
             size=(8.0, 8.0),
@@ -83,10 +84,25 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             slope_threshold=0.75,
             use_cache=False,
             sub_terrains={
+                "flat": terrain_gen.MeshPlaneTerrainCfg(
+                    proportion=0.4,
+                ),
+                # "wave": terrain_gen.HfWaveTerrainCfg(
+                #     proportion=0.5,
+                #     amplitude_range = (0.1, 0.3),
+                #     num_waves=1,
+                # ), # TODO 等波长wave
+                # TODO 仅x方向的wave
+                # TODO 减速带地形
+                "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
+                    proportion=0.3, noise_range=(0.0, 0.1), noise_step=0.005,
+                    frequency=10.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
+                ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=1.0, noise_range=(0.00, 0.025), noise_step=0.005, border_width=0.25
+                    proportion=0.3, noise_range=(0.0, 0.05), noise_step=0.01, border_width=0.25
                 ),
             },
+            seed=1,
         )
         self.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
@@ -181,11 +197,11 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         
         # startup:
         # 躯干质量随机, body_name trunk -> base
-        self.events.randomize_trunk_mass.params["asset_cfg"] = SceneEntityCfg("robot", body_names="base")
+        self.events.randomize_trunk_mass.params["asset_cfg"] = SceneEntityCfg("robot", body_names=[self.base_link_name])
 
         # 足端摩擦力
-        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.1, 1.0)
-        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.1, 0.8)
+        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.5, 1.0)
+        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.5, 0.8)
         self.events.randomize_foot_physics_material.params["restitution_range"] = (0.0, 0.5)
 
         # 关节惯量随机
@@ -204,7 +220,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             func=mdp.randomize_rigid_body_com,
             mode="startup",
             params={
-                "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.05, 0.05)},
             },
         )
@@ -243,7 +259,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             func=mdp.apply_external_force_torque,
             mode="reset",
             params={
-                "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "force_range": (-10.0, 10.0),
                 "torque_range": (-10.0, 10.0),
             },
@@ -255,8 +271,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-                "stiffness_distribution_params": (0.8, 1.2),
-                "damping_distribution_params": (0.8, 1.2),
+                "stiffness_distribution_params": (0.5, 2.0),
+                "damping_distribution_params": (0.5, 2.0),
                 "operation": "scale",
                 "distribution": "log_uniform",
             },
@@ -268,10 +284,6 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             "velocity_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.3, 0.3),
-                "z": (-0.35, 0.35),
-                "roll": (0, 0),
-                "pitch": (0, 0),
-                "yaw": (0, 0),
             },
         }
 
