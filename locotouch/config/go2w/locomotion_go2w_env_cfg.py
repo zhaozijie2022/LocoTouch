@@ -85,22 +85,24 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             use_cache=False,
             sub_terrains={
                 "flat": terrain_gen.MeshPlaneTerrainCfg(
-                    proportion=0.4,
+                    proportion=0.2,
                 ),
-                # "wave": terrain_gen.HfWaveTerrainCfg(
-                #     proportion=0.5,
-                #     amplitude_range = (0.1, 0.3),
-                #     num_waves=1,
-                # ), # TODO 等波长wave
-                # TODO 仅x方向的wave
+                # "x_wave_easy": custom_terrain_gen.HfXWaveTerrainCfg(
+                #     proportion=0.4, amplitude_range = (0.083, 0.089), wave_length=(0.35, 0.40),
+                # ),  # 波长等于轴距 --> 最简单
+                "x_wave": custom_terrain_gen.HfXWaveTerrainCfg(
+                    proportion=0.4, amplitude_range=(0.083, 0.089), wave_length=(0.77, 0.83),
+                ),  # 波长2倍轴距  --> 最难
+
                 # TODO 减速带地形
-                "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
-                    proportion=0.3, noise_range=(0.0, 0.05), noise_step=0.005,
-                    frequency=10.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
-                ),
-                "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.3, noise_range=(0.0, 0.05), noise_step=0.005, border_width=0.25
-                ),
+                # "bump": custom_terrain_gen.HfBump
+                # "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
+                #     proportion=0.0, noise_range=(0.0, 0.05), noise_step=0.005,
+                #     frequency=10.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
+                # ),
+                # "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+                #     proportion=0.0, noise_range=(0.0, 0.05), noise_step=0.005, border_width=0.25
+                # ),
             },
             seed=1,
         )

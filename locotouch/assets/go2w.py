@@ -51,13 +51,12 @@ Go2W_CFG = ArticulationCfg(
         "legs": DelayedPDActuatorCfg(
             joint_names_expr=["^(?!.*_foot_joint).*"],
             effort_limit=23.5,
-            saturation_effort=23.5,
             velocity_limit=30.0,
             stiffness=25.0,
             damping=0.5,
             friction=0.0,
-            min_delay=0.0,
-            max_delay=15.0,
+            min_delay=0,
+            max_delay=15,
         ),
         "wheels": DelayedPDActuatorCfg(
             joint_names_expr=[".*_foot_joint"],
@@ -66,8 +65,8 @@ Go2W_CFG = ArticulationCfg(
             stiffness=0.0,
             damping=0.5,
             friction=0.0,
-            min_delay=0.0,
-            max_delay=15.0,
+            min_delay=0,
+            max_delay=15,
         ),
     },
 )

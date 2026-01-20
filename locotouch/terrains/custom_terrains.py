@@ -1,5 +1,5 @@
 
-from __future__ import annotations
+from __future__ import annotations  # 将来类型注解作为字符串处理, 防止循环导入
 
 import numpy as np
 import scipy.interpolate as interpolate
@@ -71,3 +71,48 @@ def perlin_noise_terrain(difficulty: float, cfg: custom_terrains_cfg.HfPerlinNoi
     z_upsampled = func(x_upsampled, y_upsampled)
     # round off the interpolated heights to the nearest vertical step
     return np.rint(z_upsampled).astype(np.int16)
+
+
+
+
+@height_field_to_mesh
+def x_wave_terrain(difficulty: float, cfg: custom_terrains_cfg.HfXWaveTerrainCfg) -> np.ndarray:
+    r"""
+        h(x, y) =  A \left(\sin\left(\frac{2 \pi x}{\lambda}\right)
+    """
+    if isinstance(cfg.wave_length, tuple):
+        wave_length = cfg.wave_length[0] + difficulty * (
+            cfg.wave_length[1] - cfg.wave_length[0]
+        )
+    else:
+        wave_length = cfg.wave_length
+
+    if wave_length <= 0:
+        raise ValueError(f"wave_length must be positive. Got: {wave_length}")
+
+    # resolve terrain configuration
+    # 一块地形只有一个振幅
+    amplitude = cfg.amplitude_range[0] + difficulty * (cfg.amplitude_range[1] - cfg.amplitude_range[0])
+    # switch parameters to discrete units
+    # -- terrain
+    width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
+    amplitude_pixels = int(0.5 * amplitude / cfg.vertical_scale)
+
+    # compute the wave number: nu = 2 * pi / lambda
+    wave_length_pixels = wave_length / cfg.horizontal_scale
+    wave_number = 2 * np.pi / wave_length_pixels
+
+    # create meshgrid for the terrain
+    x = np.arange(0, width_pixels)
+    y = np.arange(0, length_pixels)
+    xx, yy = np.meshgrid(x, y, sparse=True)
+    xx = xx.reshape(width_pixels, 1)
+    yy = yy.reshape(1, length_pixels)
+
+    # create a terrain with a flat platform at the center
+    hf_raw = np.zeros((width_pixels, length_pixels))
+    # add the waves
+    hf_raw += amplitude_pixels * np.sin(xx * wave_number)
+    # round off the heights to the nearest vertical step
+    return np.rint(hf_raw).astype(np.int16)

@@ -9,7 +9,7 @@ from . import custom_terrains
 
 @configclass
 class HfPerlinNoiseTerrainCfg(HfTerrainBaseCfg):
-    """Configuration for a Perlin-noise height field terrain."""
+    """柏林噪声"""
 
     function = custom_terrains.perlin_noise_terrain
 
@@ -34,6 +34,17 @@ class HfPerlinNoiseTerrainCfg(HfTerrainBaseCfg):
     """
 
 
+@configclass
+class HfXWaveTerrainCfg(HfTerrainBaseCfg):
+    """X方向波浪, 等距离波长"""
+
+    function = custom_terrains.x_wave_terrain
+
+    amplitude_range: tuple[float, float] = MISSING
+    """The minimum and maximum amplitude of the wave (in m)."""
+
+    # 直接指定波长
+    wave_length: float | tuple[float, float] = 1.0
 
 
 
