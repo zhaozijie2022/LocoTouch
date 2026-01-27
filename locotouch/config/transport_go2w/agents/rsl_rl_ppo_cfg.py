@@ -11,7 +11,14 @@ class TransportGo2WTeacherPPORunnerCfg(LocomotionGo2WPPORunnerCfg):
         self.max_iterations = 80000
 
 
-
+@configclass
+class TransportGo2WBaseControlPPORunnerCfg(LocomotionGo2WPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "base_control"
+        self.wandb_project = "Go2W_BaseControl"
+        self.max_iterations = 80000
+        self.logger = "tensorboard"
 
 
 

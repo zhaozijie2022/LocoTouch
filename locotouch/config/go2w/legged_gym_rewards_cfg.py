@@ -23,8 +23,8 @@ HIP_JOINT_NAMES = [
 
 
 @configclass
-class GymDreamWaqRewardsCfg:
-    """Configuration for DreamWaq robot rewards in Gym environment."""
+class LeggedGymRewardsCfg:
+    """Configuration for Legged Gym robot rewards in IsaacGym environment."""
 
     track_lin_vel_xy_exp = RewardTermCfg(
         func=reward_funcs.track_lin_vel_xy_exp,

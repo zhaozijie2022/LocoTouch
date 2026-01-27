@@ -16,7 +16,7 @@ from locotouch.config.base.locomotion_base_env_cfg import LocomotionBaseEnvCfg, 
 # new-import
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 
-from .legged_gym_rewards_cfg import GymDreamWaqRewardsCfg
+from .legged_gym_rewards_cfg import LeggedGymRewardsCfg
 from .robotlab_rewards_cfg import RobotLabRewardsCfg
 
 
@@ -73,6 +73,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         from isaaclab.terrains import TerrainImporterCfg
         from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
         import locotouch.terrains as custom_terrain_gen
+        from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG
 
         MY_TERRAINS_CFG = TerrainGeneratorCfg(
             size=(8.0, 8.0),
@@ -87,22 +88,16 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 "flat": terrain_gen.MeshPlaneTerrainCfg(
                     proportion=0.2,
                 ),
-                # "x_wave_easy": custom_terrain_gen.HfXWaveTerrainCfg(
-                #     proportion=0.4, amplitude_range = (0.083, 0.089), wave_length=(0.35, 0.40),
-                # ),  # 波长等于轴距 --> 最简单
-                "x_wave": custom_terrain_gen.HfXWaveTerrainCfg(
-                    proportion=0.4, amplitude_range=(0.083, 0.089), wave_length=(0.77, 0.83),
-                ),  # 波长2倍轴距  --> 最难
-
-                # TODO 减速带地形
-                # "bump": custom_terrain_gen.HfBump
-                # "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
-                #     proportion=0.0, noise_range=(0.0, 0.05), noise_step=0.005,
-                #     frequency=10.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
-                # ),
-                # "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                #     proportion=0.0, noise_range=(0.0, 0.05), noise_step=0.005, border_width=0.25
-                # ),
+                "boxes": terrain_gen.MeshRandomGridTerrainCfg(
+                    proportion=0.2, grid_width=0.45, grid_height_range=(0.00, 0.20), platform_width=2.0
+                ),
+                "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
+                    proportion=0.4, noise_range=(0.00, 0.10), noise_step=0.005,
+                    frequency=0.7, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
+                ),
+                "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+                    proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
+                ),
             },
             seed=1,
         )
@@ -344,7 +339,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
 
         # region ------------------------------Rewards------------------------------
         # self.rewards: RobotLabRewardsCfg = RobotLabRewardsCfg()
-        self.rewards: GymDreamWaqRewardsCfg = GymDreamWaqRewardsCfg()
+        self.rewards: LeggedGymRewardsCfg = LeggedGymRewardsCfg()
 
 
         import isaaclab.envs.mdp.rewards as reward_funcs
@@ -395,31 +390,31 @@ class LocomotionGo2WEnvCfg_PLAY(LocomotionGo2WEnvCfg):
         # Play 时固定 commands 范围（避免 curriculum 训练时的动态范围影响 play）
         # 方案：直接把 commands 的 ranges 设成“最终想要的范围”，并同步 curriculum 的 range_multiplier
         # ---------------------------------------------------------------------
+        if self.scene.terrain.terrain_type != "generator":
+            # 你想在 play 用的最大范围（建议与你训练时最终期望的一致）
+            play_command_maximum_ranges = [
+                self.commands.base_velocity.ranges.lin_vel_x[1],   # 1.0
+                self.commands.base_velocity.ranges.lin_vel_y[1],   # 0.5
+                self.commands.base_velocity.ranges.ang_vel_z[1],   # pi/4
+            ]
 
-        # 你想在 play 用的最大范围（建议与你训练时最终期望的一致）
-        play_command_maximum_ranges = [
-            self.commands.base_velocity.ranges.lin_vel_x[1],   # 1.0
-            self.commands.base_velocity.ranges.lin_vel_y[1],   # 0.5
-            self.commands.base_velocity.ranges.ang_vel_z[1],   # pi/4
-        ]
+            # 1) 覆盖 commands ranges
+            self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
+            self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
+            self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
 
-        # 1) 覆盖 commands ranges
-        self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
-        self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
-        self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
+            # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
+            self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
+            self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
 
-        # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
-        self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
-        self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
-
-        # 3) 避免 play 时 curriculum 还在“缩放 range”
-        #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
-        #    play 直接设成 (1.0, 1.0) 让它不再变化
-        if getattr(self, "curriculum", None) is not None:
-            if getattr(self.curriculum, "command_xy_levels", None) is not None:
-                self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
-            if getattr(self.curriculum, "command_z_levels", None) is not None:
-                self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
+            # 3) 避免 play 时 curriculum 还在“缩放 range”
+            #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
+            #    play 直接设成 (1.0, 1.0) 让它不再变化
+            if getattr(self, "curriculum", None) is not None:
+                if getattr(self.curriculum, "command_xy_levels", None) is not None:
+                    self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
+                if getattr(self.curriculum, "command_z_levels", None) is not None:
+                    self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
 
 
         # # ---------------------------------------------------------------------

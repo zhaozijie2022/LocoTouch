@@ -112,3 +112,52 @@ def object_lose_contact_ngt(
     current_air_time = contact_sensor.data.current_air_time[:, sensor_cfg.body_ids] # type: ignore
     return torch.logical_and(last_contact_time > 0.0, current_air_time > 0.0).reshape(-1)
 
+
+# ----- Base Control -----
+
+def _smoothstep01(x: torch.Tensor) -> torch.Tensor:
+    # smoothstep: 3x^2 - 2x^3, x in [0,1]
+    return x * x * (3.0 - 2.0 * x)
+
+import isaaclab.utils.math as math_utils
+def track_lin_vel_x_exp_acc_gated(
+    env: ManagerBasedRLEnv, std: float, command_name: str,
+    acc_soft: float, acc_hard: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Tracking reward gated by |base ax|. When |ax| is large, tracking reward is suppressed, and becomes 0 above acc_hard."""
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 0] - asset.data.root_lin_vel_b[:, 0])
+    r_track = torch.exp(-lin_vel_error / (std ** 2))
+
+    # --- acceleration gate (you said you can directly read it) ---
+    # body_com_lin_acc_w: [N, num_bodies, 3] or [N, 3]? 你给的 slice 是 [:, 0]，这里按“x分量”写
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
+    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    base_lin_acc_b = math_utils.quat_apply_inverse(body_quat, base_lin_acc_w)
+    ax = base_lin_acc_b[:, 0]
+    ax_abs = torch.abs(ax)
+
+    # guard: ensure acc_soft < acc_hard
+    # gate = 1                      if ax<=acc_soft
+    #      = smooth decay 1->0       if acc_soft<ax<acc_hard
+    #      = 0                      if ax>=acc_hard
+    t = (ax_abs - acc_soft) / (acc_hard - acc_soft + 1e-6)
+    t = torch.clamp(t, 0.0, 1.0)
+    gate = 1.0 - _smoothstep01(t)
+    gate = torch.where(ax_abs >= acc_hard, torch.zeros_like(gate), gate)
+
+    return r_track * gate
+
+
+def track_lin_vel_y_exp(
+    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the error
+    lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 1] - asset.data.root_lin_vel_b[:, 1])
+    return torch.exp(-lin_vel_error / std**2)
+

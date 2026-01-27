@@ -26,6 +26,19 @@ def joint_pos_rel_without_wheel(
     return joint_pos_rel
 
 
+import isaaclab.utils.math as math_utils
+def base_lin_acc(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """The linear acceleration of the base link of the asset."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
+    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    return math_utils.quat_apply_inverse(body_quat, base_lin_acc_w)
+
+
 def phase(env: ManagerBasedRLEnv, cycle_time: float) -> torch.Tensor:
     if not hasattr(env, "episode_length_buf") or env.episode_length_buf is None:
         env.episode_length_buf = torch.zeros(env.num_envs, device=env.device, dtype=torch.long)

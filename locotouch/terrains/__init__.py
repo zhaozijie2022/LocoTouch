@@ -1,4 +1,5 @@
 from .custom_terrains_cfg import (
     HfPerlinNoiseTerrainCfg,
-    HfXWaveTerrainCfg
+    HfXWaveTerrainCfg,
+    HfSpeedBumpTerrainCfg
 )

@@ -43,8 +43,35 @@ class HfXWaveTerrainCfg(HfTerrainBaseCfg):
     amplitude_range: tuple[float, float] = MISSING
     """The minimum and maximum amplitude of the wave (in m)."""
 
-    # 直接指定波长
-    wave_length: float | tuple[float, float] = 1.0
+    wave_length: float | tuple[float, float] = MISSING
 
 
+@configclass
+class HfSpeedBumpTerrainCfg(HfTerrainBaseCfg):
+    """周期出现的减速带地形/ 适配人字形和梯形减速带"""
+    function = custom_terrains.speed_bump_terrain
+
+    num_bumps: int = 8
+    """减速带数量"""
+
+    bump_height_range: tuple[float, float] = MISSING
+    """减速带高度范围 (m), 与difficulty有关"""
+
+    random_flat_ratio: tuple[float, float] = MISSING
+    """平顶减速带比例范围 (0-1), 与difficulty无关, 域随机化参数"""
+
+    random_bump_width: tuple[float, float] = MISSING
+    """减速带宽度范围 (m), 与difficulty无关, 域随机化参数"""
+
+    num_gaps: int = 4
+    """减速带间隙数量"""
+
+    random_gap_length: tuple[float, float] = MISSING
+    """减速带间隙长度范围 (m), 与difficulty无关, 域随机化参数"""
+
+    gap_margin: float = 0.5
+    """减速带间隙边缘预留 (m)"""
+
+    platform_width: float = 2.0
+    """场地中心平地尺寸 (m)"""
 
