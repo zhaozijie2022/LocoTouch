@@ -176,17 +176,20 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             joint_names=self.leg_joint_names,
             scale=0.25,
             use_default_offset=True,
-            clip={".*": (-100.0, 100.0)},
-            preserve_order=True
+            # clip=None,
+            clip={".*": (-5.0, 5.0)},
+            preserve_order=True,
         )
 
         # 轮子：速度控制（4D）- 与执行器 ImplicitActuatorCfg 对应
         self.actions.joint_vel = JointVelocityActionCfg(
             asset_name="robot",
             joint_names=self.wheel_joint_names,
-            scale=10.0,  # 从 gym_dreamwaq 中 10.0, robot_lab中为 5.0
+            scale=10.0,
             use_default_offset=True,
-            clip={".*": (-100.0, 100.0)},
+            # clip=None,
+            clip={".*": (-10.0, 10.0)},
+            preserve_order=True,
         )
         # endregion
 

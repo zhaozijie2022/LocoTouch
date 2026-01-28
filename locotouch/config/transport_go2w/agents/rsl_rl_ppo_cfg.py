@@ -18,7 +18,7 @@ class TransportGo2WBaseControlPPORunnerCfg(LocomotionGo2WPPORunnerCfg):
         self.experiment_name = "base_control"
         self.wandb_project = "Go2W_BaseControl"
         self.max_iterations = 80000
-        self.logger = "tensorboard"
+        self.policy.noise_std_type = "log"
 
 
 

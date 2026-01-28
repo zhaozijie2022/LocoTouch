@@ -44,10 +44,10 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             use_cache=False,
             sub_terrains={
                 "flat": terrain_gen.MeshPlaneTerrainCfg(
-                    proportion=0.1
+                    proportion=0.2
                 ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.1, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
+                    proportion=0.0, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
@@ -138,6 +138,8 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         import locotouch.mdp.transport_go2w_reward_funcs as object_reward_funcs
 
         # 调大背部平台保持水平的奖励权重
+        self.rewards.action_rate_l2.weight = 0.001 # 减少动作变化惩罚
+
         self.rewards.flat_orientation_l2.weight = -2.5
 
         self.rewards.lin_vel_z_l2.weight = -5.0
@@ -152,7 +154,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             params={
                 "command_name": "base_velocity",
                 "std": math.sqrt(0.25),
-                "acc_soft": 2.5,  # acc < gR / H; acc < \mu g
+                "acc_soft": 1.5,  # acc < gR / H; acc < \mu g
                 "acc_hard": 5.0,
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
             }
