@@ -161,3 +161,18 @@ def track_lin_vel_y_exp(
     lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 1] - asset.data.root_lin_vel_b[:, 1])
     return torch.exp(-lin_vel_error / std**2)
 
+def joint_action_rate_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    which_joint: str = None
+) -> torch.Tensor:
+    """Penalize the rate of change of the actions using L2 squared kernel."""
+    # TODO 没有使用asset_cfg.body_names
+    if which_joint == "leg":
+        return torch.sum(torch.square(env.action_manager.action[:, :12] - env.action_manager.prev_action[:, :12]), dim=1)
+    elif which_joint == "wheel":
+        return torch.sum(torch.square(env.action_manager.action[:, 12:16] - env.action_manager.prev_action[:, 12:16]), dim=1)
+    elif which_joint is None:
+        return torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
+    else:
+         raise ValueError(f"Unknown which_joint option: {which_joint}")

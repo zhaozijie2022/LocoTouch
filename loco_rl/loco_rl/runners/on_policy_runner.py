@@ -286,6 +286,13 @@ class OnPolicyRunner:
 
         # -- Policy
         self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])
+        for i in range(self.env.num_actions):
+            self.writer.add_scalar(f"Policy/action_std_{i}", self.alg.actor_critic.action_std[:, i].mean().item(), locs["it"])
+        for i in range(self.env.num_actions):
+            if self.alg.actor_critic.noise_std_type == "scalar":
+                self.writer.add_scalar(f"Policy/model_std_{i}", self.alg.actor_critic.std[i].item(), locs["it"])
+            elif self.alg.actor_critic.noise_std_type == "log":
+                self.writer.add_scalar(f"Policy/model_std_{i}", torch.exp(self.alg.actor_critic.log_std[i]).item(), locs["it"])
 
         # -- Performance
         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])

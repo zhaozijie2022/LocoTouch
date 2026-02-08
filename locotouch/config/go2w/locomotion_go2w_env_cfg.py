@@ -88,15 +88,16 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 "flat": terrain_gen.MeshPlaneTerrainCfg(
                     proportion=0.2,
                 ),
+                # TODO boxes会让机器人掉下去
                 "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                    proportion=0.2, grid_width=0.45, grid_height_range=(0.00, 0.20), platform_width=2.0
+                    proportion=0.0, grid_width=0.45, grid_height_range=(0.05, 0.20), platform_width=2.0
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.4, noise_range=(0.00, 0.10), noise_step=0.005,
                     frequency=0.7, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
                 ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
+                    proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
                 ),
             },
             seed=1,
@@ -176,8 +177,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             joint_names=self.leg_joint_names,
             scale=0.25,
             use_default_offset=True,
-            # clip=None,
-            clip={".*": (-5.0, 5.0)},
+            clip={".*": (-100.0, 100.0)},
+            # clip={".*": (-1.2, 1.2)},
             preserve_order=True,
         )
 
@@ -187,9 +188,8 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             joint_names=self.wheel_joint_names,
             scale=10.0,
             use_default_offset=True,
-            # clip=None,
-            clip={".*": (-10.0, 10.0)},
-            preserve_order=True,
+            clip={".*": (-100.0, 100.0)},
+            # clip={".*": (-10.0, 10.0)},
         )
         # endregion
 
@@ -233,7 +233,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 "z": (0.0, 0.2),
                 "roll": (-0.0, 0.0),
                 "pitch": (-0.0, 0.0),
-                "yaw": (-0.0, 0.0),
+                "yaw": (-math.pi, math.pi),
             },
             "velocity_range": {
                 "x": (-0.5, 0.5),
@@ -306,7 +306,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             # heading_control_stiffness=0.5,
             # debug_vis=True,
             ranges=mdp.UniformVelocityCommandMultiSamplingCfg.Ranges(
-                lin_vel_x=(-1.0, 1.0),
+                lin_vel_x=(-1.5, 1.5),
                 lin_vel_y=(-0.3, 0.3),
                 ang_vel_z=(-math.pi / 4, math.pi / 4),
             ),

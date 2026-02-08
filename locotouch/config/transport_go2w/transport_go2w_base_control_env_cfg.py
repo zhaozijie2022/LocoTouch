@@ -58,7 +58,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 ),
                 "trap_speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
                     proportion=0.2, num_bumps=6, bump_height_range=(0.03, 0.07),
-                    random_flat_ratio=(0.20, 0.50), random_bump_width=(0.30, 0.40),
+                    random_flat_ratio=(0.30, 0.40), random_bump_width=(0.30, 0.35),
                     num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
                 ),
@@ -78,12 +78,14 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # region ------------------------------Observations------------------------------
         # 加入背部平台加速度
+        from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
         self.observations.policy.base_lin_acc = ObservationTermCfg(
             func=mdp.base_lin_acc,
             scale=0.25,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
             },
+            noise=Unoise(n_min=-0.5, n_max=0.5),
         )
 
         self.observations.critic.base_lin_acc = ObservationTermCfg(
@@ -96,7 +98,27 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region ------------------------------Actions------------------------------
-        pass
+        self.actions.joint_pos = mdp.JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=self.leg_joint_names,
+            scale=0.25,
+            use_default_offset=True,
+            clip=None,
+            # clip={".*": (-1.2, 1.2)},
+            preserve_order=True,
+        )
+
+        from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
+        # 轮子：速度控制（4D）- 与执行器 ImplicitActuatorCfg 对应
+        self.actions.joint_vel = JointVelocityActionCfg(
+            asset_name="robot",
+            joint_names=self.wheel_joint_names,
+            scale=10.0,
+            use_default_offset=True,
+            clip=None,
+            # clip={".*": (-10.0, 10.0)},
+            preserve_order=True,
+        )
         # endregion
 
         # region ------------------------------Events------------------------------
@@ -105,8 +127,8 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # reset:
         # 机器人初始化位置
-        self.events.reset_base.params["pose_range"]["x"] = (-1.5, 1.5)  # 保证在中心平台
-        self.events.reset_base.params["pose_range"]["y"] = (-1.5, 1.5)
+        self.events.reset_base.params["pose_range"]["x"] = (-0, 0)  # 保证在中心平台
+        self.events.reset_base.params["pose_range"]["y"] = (-0, 0)
         self.events.reset_base.params["pose_range"]["yaw"] = (-math.pi, math.pi)
 
         # interval:
@@ -126,7 +148,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         self.commands.base_velocity.final_rel_standing_envs = 0.1
         self.commands.base_velocity.initial_zero_command_steps = 50
         self.commands.base_velocity.final_initial_zero_command_steps = 50
-        self.commands.base_velocity.resampling_time_range = (3.0, 3.0)
+        self.commands.base_velocity.resampling_time_range = (6.0, 8.0)
 
         # endregion
 
@@ -137,9 +159,23 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # region ------------------------------Rewards------------------------------
         import locotouch.mdp.transport_go2w_reward_funcs as object_reward_funcs
 
-        # 调大背部平台保持水平的奖励权重
-        self.rewards.action_rate_l2.weight = 0.001 # 减少动作变化惩罚
+        self.rewards.leg_action_rate_l2 = RewardTermCfg(
+            func=object_reward_funcs.joint_action_rate_l2,
+            params={"which_joint": "leg"},
+            weight=-0.01
+        )
 
+        self.rewards.wheel_action_rate_l2 = RewardTermCfg(
+            func=object_reward_funcs.joint_action_rate_l2,
+            params={"which_joint": "wheel"},
+            weight=-0.00025
+        )
+
+        # self.rewards.action_rate_l2.weight = -0.005 # 减少动作变化惩罚
+        # self.rewards.joint_wheel_acc_l2.weight = -5e-8 # 增大轮子加速度惩罚
+        # self.rewards.joint_torques_l2.weight = -5.0e-4 # 增大关节力矩惩罚
+
+        # 调大背部平台保持水平的奖励权重
         self.rewards.flat_orientation_l2.weight = -2.5
 
         self.rewards.lin_vel_z_l2.weight = -5.0
@@ -150,7 +186,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         self.rewards.track_lin_vel_xy_exp = None
         self.rewards.track_lin_vel_x_exp = RewardTermCfg(
             func=object_reward_funcs.track_lin_vel_x_exp_acc_gated,
-            weight=1.5,
+            weight=1.0,
             params={
                 "command_name": "base_velocity",
                 "std": math.sqrt(0.25),
@@ -161,7 +197,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         )
         self.rewards.track_lin_vel_y_exp = RewardTermCfg(
             func=object_reward_funcs.track_lin_vel_y_exp,
-            weight=1.0,
+            weight=0.75,
             params={
                 "command_name": "base_velocity",
                 "std": math.sqrt(0.25),

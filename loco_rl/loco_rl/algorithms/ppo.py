@@ -16,6 +16,10 @@ from loco_rl.storage import RolloutStorage
 from loco_rl.utils import string_to_callable
 
 
+def _isfinite(*tensors):
+    return all(torch.isfinite(t).all() for t in tensors)
+
+
 class PPO:
     """Proximal Policy Optimization algorithm (https://arxiv.org/abs/1707.06347)."""
 
@@ -254,6 +258,25 @@ class PPO:
             value_batch = self.actor_critic.evaluate(
                 critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1]
             )
+
+            # 检查异常值
+            if not _isfinite(actions_log_prob_batch):
+                print("[WARN] Skip batch: non-finite logprob")
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
+            elif not _isfinite(value_batch):
+                print("[WARN] Skip batch: non-finite value")
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
+            elif not _isfinite(returns_batch):
+                print("[WARN] Skip batch: non-finite returns")
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
+            elif not _isfinite(advantages_batch):
+                print("[WARN] Skip batch: non-finite advantages")
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
+
             # -- entropy
             # we only keep the entropy of the first augmentation (the original one)
             mu_batch = self.actor_critic.action_mean[:original_batch_size]
@@ -281,7 +304,18 @@ class PPO:
                         param_group["lr"] = self.learning_rate
 
             # Surrogate loss
-            ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
+            # ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
+
+            log_ratio = actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch)
+            log_ratio = torch.clamp(log_ratio, -20.0, 20.0)
+            ratio = torch.exp(log_ratio)
+
+            # 再次检查异常值
+            if not torch.isfinite(ratio).all():
+                print("[WARN] Skip batch: non-finite ratio")
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
+
             surrogate = -torch.squeeze(advantages_batch) * ratio
             surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(
                 ratio, 1.0 - self.clip_param, 1.0 + self.clip_param
@@ -300,6 +334,12 @@ class PPO:
                 value_loss = (returns_batch - value_batch).pow(2).mean()
 
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
+
+            # 最终检测
+            if not torch.isfinite(loss):
+                print("[WARN] Skip batch: non-finite loss")
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
 
             # Symmetry loss
             if self.symmetry:
