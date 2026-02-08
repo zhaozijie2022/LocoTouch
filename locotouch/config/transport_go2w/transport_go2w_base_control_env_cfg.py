@@ -11,7 +11,6 @@ from locotouch.assets.go2w_transport import Go2W_TRANSPORT_CFG as Robot_CFG
 from locotouch.config.go2w.locomotion_go2w_env_cfg import LocomotionGo2WEnvCfg
 
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
-import locotouch.mdp.transport_go2w_reward_funcs as object_reward_funcs
 
 
 @configclass
@@ -28,7 +27,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # self.scene.num_envs = 20
         # self.sim.physx.gpu_max_rigid_patch_count = 4096 * 4096
 
-        # region ------------------------------Scene------------------------------
+        # region Scene
         import isaaclab.terrains as terrain_gen
         from isaaclab.terrains.terrain_generator_cfg import TerrainGeneratorCfg
         import locotouch.terrains as custom_terrain_gen
@@ -47,36 +46,36 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                     proportion=0.2
                 ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.0, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
+                    proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
                     frequency=0.7, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
                 ),
                 "x_wave": custom_terrain_gen.HfXWaveTerrainCfg(
-                    proportion=0.0, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
+                    proportion=0.3, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
                 ),
-                "trap_speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
-                    proportion=0.2, num_bumps=6, bump_height_range=(0.03, 0.07),
-                    random_flat_ratio=(0.30, 0.40), random_bump_width=(0.30, 0.35),
+                "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
+                    proportion=0.3, num_bumps=6, bump_height_range=(0.03, 0.07),
+                    random_flat_ratio=(0.0, 0.40), random_bump_width=(0.30, 0.35),
                     num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
                 ),
-                "tri_speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
-                    proportion=0.2, num_bumps=6, bump_height_range=(0.03, 0.07),
-                    random_flat_ratio=(0.0, 0.0), random_bump_width=(0.30, 0.40),
-                    num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
-                    platform_width=2.0, border_width=0.25
-                ),
-                "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                    proportion=0.2, grid_width=0.45, grid_height_range=(0.00, 0.20), platform_width=2.0
-                ),
+                # "tri_speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
+                #     proportion=0.2, num_bumps=6, bump_height_range=(0.03, 0.07),
+                #     random_flat_ratio=(0.0, 0.0), random_bump_width=(0.30, 0.40),
+                #     num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
+                #     platform_width=2.0, border_width=0.25
+                # ),
+                # "boxes": terrain_gen.MeshRandomGridTerrainCfg(
+                #     proportion=0.0, grid_width=0.45, grid_height_range=(0.05, 0.20), platform_width=2.0
+                # ),
             },
             seed=1,
         )
         # endregion
 
-        # region ------------------------------Observations------------------------------
+        # region Observations
         # 加入背部平台加速度
         from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
         self.observations.policy.base_lin_acc = ObservationTermCfg(
@@ -97,13 +96,14 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         )
         # endregion
 
-        # region ------------------------------Actions------------------------------
+        # region Actions
+        # TODO 在action的config中直接加入低通滤波, 避免action-rate的崩溃
         self.actions.joint_pos = mdp.JointPositionActionCfg(
             asset_name="robot",
             joint_names=self.leg_joint_names,
             scale=0.25,
             use_default_offset=True,
-            clip=None,
+            clip={".*": (-100.0, 100.0,)},
             # clip={".*": (-1.2, 1.2)},
             preserve_order=True,
         )
@@ -115,13 +115,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             joint_names=self.wheel_joint_names,
             scale=10.0,
             use_default_offset=True,
-            clip=None,
+            clip={".*": (-100.0, 100.0,)},
             # clip={".*": (-10.0, 10.0)},
             preserve_order=True,
         )
         # endregion
 
-        # region ------------------------------Events------------------------------
+        # region Events
         pass
         # startup:
 
@@ -135,13 +135,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # endregion
 
-        # region ------------------------------Terminations------------------------------
+        # region Terminations
         pass
         # endregion
 
-        # region ------------------------------Commands------------------------------
-        # 仅保留 x 方向
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.5,1.5)
+        # region Commands
+        # 仅保留 x 方向速度指令
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0,1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.rel_standing_envs = 0.1
@@ -157,46 +157,36 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region ------------------------------Rewards------------------------------
-        import locotouch.mdp.transport_go2w_reward_funcs as object_reward_funcs
+        import locotouch.mdp.custom_reward_funcs as custom_reward_funcs
 
-        self.rewards.leg_action_rate_l2 = RewardTermCfg(
-            func=object_reward_funcs.joint_action_rate_l2,
-            params={"which_joint": "leg"},
-            weight=-0.01
-        )
-
-        self.rewards.wheel_action_rate_l2 = RewardTermCfg(
-            func=object_reward_funcs.joint_action_rate_l2,
-            params={"which_joint": "wheel"},
-            weight=-0.00025
-        )
+        # 增加了reset屏蔽和clip
+        self.rewards.action_rate_l2.func = custom_reward_funcs.custom_action_rate_l2
 
         # self.rewards.action_rate_l2.weight = -0.005 # 减少动作变化惩罚
         # self.rewards.joint_wheel_acc_l2.weight = -5e-8 # 增大轮子加速度惩罚
         # self.rewards.joint_torques_l2.weight = -5.0e-4 # 增大关节力矩惩罚
 
-        # 调大背部平台保持水平的奖励权重
-        self.rewards.flat_orientation_l2.weight = -2.5
-
+        # 惩罚 roll & pitch -0.5 -> -5.0
+        self.rewards.flat_orientation_l2.weight = -5.0
+        # 抑制背部平台的晃动 -1.0 -> -5.0
         self.rewards.lin_vel_z_l2.weight = -5.0
-        # 抑制背部平台的晃动
-        self.rewards.ang_vel_xy_l2.weight = -0.1
+        # xy方向角速度就是roll和pitch的角速度惩罚 -0.05 -> -0.25
+        self.rewards.ang_vel_xy_l2.weight = -0.25
 
-        # 惩罚base的线加速度
+        # 鼓励速度跟踪
         self.rewards.track_lin_vel_xy_exp = None
         self.rewards.track_lin_vel_x_exp = RewardTermCfg(
-            func=object_reward_funcs.track_lin_vel_x_exp_acc_gated,
+            func=custom_reward_funcs.track_lin_vel_x_exp,
             weight=1.0,
             params={
                 "command_name": "base_velocity",
                 "std": math.sqrt(0.25),
-                "acc_soft": 1.5,  # acc < gR / H; acc < \mu g
-                "acc_hard": 5.0,
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
             }
         )
+        # cmd没有y方向速度, 这里的0.75是鼓励y方向不要漂移
         self.rewards.track_lin_vel_y_exp = RewardTermCfg(
-            func=object_reward_funcs.track_lin_vel_y_exp,
+            func=custom_reward_funcs.track_lin_vel_y_exp,
             weight=0.75,
             params={
                 "command_name": "base_velocity",
@@ -204,7 +194,29 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             }
         )
 
+        # self.rewards.track_lin_vel_x_exp = RewardTermCfg(
+        #     func=custom_reward_funcs.track_lin_vel_x_exp_acc_gated,
+        #     weight=1.0,
+        #     params={
+        #         "command_name": "base_velocity",
+        #         "std": math.sqrt(0.25),
+        #         # acc在1.5到5.0
+        #         "acc_soft": 1.5,  # acc < gR / H; acc < \mu g
+        #         "acc_hard": 5.0,
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     }
+        # )
 
+        # 惩罚 base xyz加速度
+        self.rewards.acc_l2 = RewardTermCfg(
+            func=custom_reward_funcs.acc_l2,
+            weight=-0.01,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+                "threshold": (1.5, 10.0),
+                "xyz": (1.0, 2.0, 2.0)
+            }
+        )
 
 
         # endregion

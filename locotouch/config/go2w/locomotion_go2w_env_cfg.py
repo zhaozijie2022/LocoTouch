@@ -7,7 +7,6 @@ from isaaclab.utils import configclass
 import numpy as np
 import locotouch.mdp as mdp
 from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
-import locotouch.mdp.robotlab_reward_funcs as robotlab_rewards  # 奖励项实现函数
 
 from locotouch.assets.go2w import Go2W_CFG as Robot_CFG
 from locotouch.config.base.locomotion_base_env_cfg import LocomotionBaseEnvCfg, smaller_scene_for_playing
@@ -17,7 +16,6 @@ from locotouch.config.base.locomotion_base_env_cfg import LocomotionBaseEnvCfg, 
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 
 from .legged_gym_rewards_cfg import LeggedGymRewardsCfg
-from .robotlab_rewards_cfg import RobotLabRewardsCfg
 
 
 @configclass

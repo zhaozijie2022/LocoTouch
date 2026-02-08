@@ -115,6 +115,16 @@ def object_lose_contact_ngt(
 
 # ----- Base Control -----
 
+def track_lin_vel_x_exp(
+    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the error
+    lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 0] - asset.data.root_lin_vel_b[:, 0])
+    return torch.exp(-lin_vel_error / std ** 2)
+
 def _smoothstep01(x: torch.Tensor) -> torch.Tensor:
     # smoothstep: 3x^2 - 2x^3, x in [0,1]
     return x * x * (3.0 - 2.0 * x)
@@ -132,7 +142,6 @@ def track_lin_vel_x_exp_acc_gated(
     r_track = torch.exp(-lin_vel_error / (std ** 2))
 
     # --- acceleration gate (you said you can directly read it) ---
-    # body_com_lin_acc_w: [N, num_bodies, 3] or [N, 3]? 你给的 slice 是 [:, 0]，这里按“x分量”写
     body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
     base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
     base_lin_acc_b = math_utils.quat_apply_inverse(body_quat, base_lin_acc_w)
@@ -176,3 +185,52 @@ def joint_action_rate_l2(
         return torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
     else:
          raise ValueError(f"Unknown which_joint option: {which_joint}")
+
+
+from typing import Tuple
+def acc_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    threshold: Tuple[float, float] = (1.5, 5.0),
+    xyz: Tuple [float, float, float] = (1.0, 1.0, 1.0),
+) -> torch.Tensor:
+    """Penalize the acceleration of the base using L2 squared kernel."""
+    assert sum(xyz) > 0 and min(xyz) >= 0
+    thr0, thr1 = threshold
+    assert thr1 > thr0 >= 0
+
+    asset: Articulation = env.scene[asset_cfg.name]
+    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
+    acc_b = math_utils.quat_apply_inverse(quat, acc_w)
+
+    pen = torch.clamp(torch.square(acc_b) - thr0, min=0.0, max=(thr1 - thr0)**2)
+    return torch.sum(pen * torch.tensor(xyz, device=pen.device), dim=1) / sum(xyz)
+
+def custom_action_rate_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
+
+    """Penalize the rate of change of the actions using L2 squared kernel."""
+    # env.action_manager.action和prev_action 都是process之前的, 模型直接输出的 raw_action
+    # env.reset_buf中记录的是要去reset的envs, 刚 reset 完没有记录
+    # check env.action_manager.prev_action, 当全都是0的时候说明刚reset完
+    # env.reset_buf: torch.Tensor, shape: (num_envs,), dtype: torch.bool
+    # env.reset_terminated: torch.Tensor, shape: (num_envs,), dtype: torch.bool
+    # env.reset_time_outs: torch.Tensor, shape: (num_envs,), dtype: torch.bool
+    # env.action_manager.prev_action: torch.Tensor, shape: (num_envs, action_dim)
+
+    # 即将要reset的env, action rate penalty为0
+    # 刚刚reset完的env, action rate penalty为0
+    delta_action = env.action_manager.action - env.action_manager.prev_action
+    delta_action = torch.clamp(delta_action, min=-100.0, max=100.0)
+    pen = torch.sum(torch.square(delta_action), dim=1)
+
+    will_reset = env.reset_terminated
+    just_reset = torch.all(env.action_manager.prev_action.abs() < 1e-6, dim=1)
+    mask = will_reset | just_reset
+
+    return torch.where(mask, torch.zeros_like(pen), pen)
+
+
+
+
+

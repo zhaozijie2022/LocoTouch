@@ -17,55 +17,6 @@ if TYPE_CHECKING:
 from isaaclab.envs.mdp.rewards import *
 
 
-# region -- from isaaclab --
-
-# def track_lin_vel_xy_exp == gym: _reward_tracking_lin_vel, 惩罚当前机器人在X、Y方向速度与命令不一致
-# params["std"] = math.sqrt(0.25)  # 0.25 等效于 std ** 2
-
-
-# def track_ang_vel_z_exp == gym: _reward_tracking_ang_vel, 惩罚当前机器人在角度转向速度与命令不一致
-# params["std"] = math.sqrt(0.25)  # 0.25 等效
-
-
-# def lin_vel_z_l2 == gym: _reward_lin_vel_z, 惩罚机器人在Z轴上的速度 对应现象为机器人上下起伏很大
-
-
-# def ang_vel_xy_l2 == gym: _reward_ang_vel_xy, 惩罚机器人在X轴和Y轴上的角速度 对应现象为遏制机器人左右晃动和前后晃动
-
-
-# def flat_orientation_l2 == gym: _reward_orientation, 鼓励机器人与初始姿态的基座方向一致
-
-
-# def joint_torques_l2 == gym: _reward_torques, 机器人运控各电机输出的力矩的平方和, 让模型找到最省力矩的方案
-# params["asset_cfg"].joint_names = self.joint_names # or leg_joint_names + wheel_joint_names or ".*"
-
-
-# def joint_vel_l2 == gym: _reward_dof_vel, 惩罚关节速度
-
-
-# def joint_acc_l2 == gym: _reward_dof_acc, 惩罚关节加速度
-
-
-# def base_height_l2 == gym: _reward_base_height, 惩罚基座高度不保持在期望的高度上
-# params["target_height"] = 0.4
-# params["sensor_cfg"] = SceneEntityCfg("height_scanner_base")
-# params["asset_cfg"].body_names = ["base"]
-
-
-# undesired_contacts == gym: _reward_collision, 惩罚碰撞
-# params["asset_cfg"].body_names=[f"^(?!.*{FOOT_LINK_NAME}).*"]
-# params["threshold"] = 0.1  # isaaclab 的默认是1.0
-
-
-# def action_rate_l2 == gym: _reward_action_rate, 惩罚动作变化率
-
-
-# def joint_pos_limits == gym: _reward_dof_pos_limits, 惩罚关节位置超出限制
-# params["asset_cfg"].joint_names = leg_joint_names
-
-# endregion
-
-
 # region -- custom reward --
 
 def stand_still_without_cmd(

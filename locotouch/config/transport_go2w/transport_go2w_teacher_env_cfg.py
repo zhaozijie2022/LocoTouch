@@ -10,7 +10,7 @@ from locotouch.assets.go2w_transport import Go2W_TRANSPORT_CFG as Robot_CFG
 from locotouch.config.go2w.locomotion_go2w_env_cfg import LocomotionGo2WEnvCfg
 
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
-import locotouch.mdp.transport_go2w_reward_funcs as object_reward_funcs
+import locotouch.mdp.custom_reward_funcs as object_reward_funcs
 
 
 @configclass
