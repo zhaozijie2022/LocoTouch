@@ -68,7 +68,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 #     platform_width=2.0, border_width=0.25
                 # ),
                 # "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                #     proportion=0.0, grid_width=0.45, grid_height_range=(0.05, 0.20), platform_width=2.0
+                #     proportion=0.0, grid_width=0.45, grid_height_range=(0.02, 0.10), platform_width=2.0
                 # ),
             },
             seed=1,
@@ -136,7 +136,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region Terminations
-        pass
+        self.terminations.base_height_below_minimum = None
+        self.terminations.base_orientation = None
+        self.terminations.terrain_out_of_bounds = TerminationTermCfg(
+            func=mdp.terrain_out_of_bounds,
+            params={"asset_cfg": SceneEntityCfg("robot"), "distance_buffer": 3.0},
+            time_out=True,
+        )
         # endregion
 
         # region Commands
@@ -161,6 +167,9 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # 增加了reset屏蔽和clip
         self.rewards.action_rate_l2.func = custom_reward_funcs.custom_action_rate_l2
+        # self.rewards.action_rate_l2.params={
+        #     "threshold": 7.0, # raw_action,
+        # },
 
         # self.rewards.action_rate_l2.weight = -0.005 # 减少动作变化惩罚
         # self.rewards.joint_wheel_acc_l2.weight = -5e-8 # 增大轮子加速度惩罚
@@ -208,8 +217,8 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # )
 
         # 惩罚 base xyz加速度
-        self.rewards.acc_l2 = RewardTermCfg(
-            func=custom_reward_funcs.acc_l2,
+        self.rewards.base_acc_l2 = RewardTermCfg(
+            func=custom_reward_funcs.base_acc_l2,
             weight=-0.01,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),

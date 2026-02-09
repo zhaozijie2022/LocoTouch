@@ -259,23 +259,23 @@ class PPO:
                 critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1]
             )
 
-            # 检查异常值
-            if not _isfinite(actions_log_prob_batch):
-                print("[WARN] Skip batch: non-finite logprob")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
-            elif not _isfinite(value_batch):
-                print("[WARN] Skip batch: non-finite value")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
-            elif not _isfinite(returns_batch):
-                print("[WARN] Skip batch: non-finite returns")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
-            elif not _isfinite(advantages_batch):
-                print("[WARN] Skip batch: non-finite advantages")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
+            # # 检查异常值
+            # if not _isfinite(actions_log_prob_batch):
+            #     print("[WARN] Skip batch: non-finite logprob")
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
+            # elif not _isfinite(value_batch):
+            #     print("[WARN] Skip batch: non-finite value")
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
+            # elif not _isfinite(returns_batch):
+            #     print("[WARN] Skip batch: non-finite returns")
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
+            # elif not _isfinite(advantages_batch):
+            #     print("[WARN] Skip batch: non-finite advantages")
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
 
             # -- entropy
             # we only keep the entropy of the first augmentation (the original one)
@@ -310,11 +310,11 @@ class PPO:
             log_ratio = torch.clamp(log_ratio, -20.0, 20.0)
             ratio = torch.exp(log_ratio)
 
-            # 再次检查异常值
-            if not torch.isfinite(ratio).all():
-                print("[WARN] Skip batch: non-finite ratio")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
+            # # 再次检查异常值
+            # if not _isfinite(ratio):
+            #     print("[WARN] Skip batch: non-finite ratio")
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
 
             surrogate = -torch.squeeze(advantages_batch) * ratio
             surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(
@@ -335,11 +335,11 @@ class PPO:
 
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
 
-            # 最终检测
-            if not torch.isfinite(loss):
-                print("[WARN] Skip batch: non-finite loss")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
+            # # 最终检测
+            # if not _isfinite(loss):
+            #     print("[WARN] Skip batch: non-finite loss")
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
 
             # Symmetry loss
             if self.symmetry:

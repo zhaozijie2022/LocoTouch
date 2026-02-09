@@ -188,7 +188,7 @@ def joint_action_rate_l2(
 
 
 from typing import Tuple
-def acc_l2(
+def base_acc_l2(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     threshold: Tuple[float, float] = (1.5, 5.0),
@@ -207,7 +207,10 @@ def acc_l2(
     pen = torch.clamp(torch.square(acc_b) - thr0, min=0.0, max=(thr1 - thr0)**2)
     return torch.sum(pen * torch.tensor(xyz, device=pen.device), dim=1) / sum(xyz)
 
-def custom_action_rate_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
+def custom_action_rate_l2(
+    env: ManagerBasedRLEnv,
+    threshold: float = 7.0,
+) -> torch.Tensor:
 
     """Penalize the rate of change of the actions using L2 squared kernel."""
     # env.action_manager.action和prev_action 都是process之前的, 模型直接输出的 raw_action
@@ -221,10 +224,12 @@ def custom_action_rate_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     # 即将要reset的env, action rate penalty为0
     # 刚刚reset完的env, action rate penalty为0
     delta_action = env.action_manager.action - env.action_manager.prev_action
-    delta_action = torch.clamp(delta_action, min=-100.0, max=100.0)
+    if torch.max(torch.abs(delta_action)) > threshold:
+        print(f"[WARN] custom_action_rate_l2: delta_action exceeds threshold {threshold}!")
+    delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
     pen = torch.sum(torch.square(delta_action), dim=1)
 
-    will_reset = env.reset_terminated
+    will_reset = env.reset_buf
     just_reset = torch.all(env.action_manager.prev_action.abs() < 1e-6, dim=1)
     mask = will_reset | just_reset
 
