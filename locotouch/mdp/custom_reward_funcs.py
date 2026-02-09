@@ -224,9 +224,9 @@ def custom_action_rate_l2(
     # 即将要reset的env, action rate penalty为0
     # 刚刚reset完的env, action rate penalty为0
     delta_action = env.action_manager.action - env.action_manager.prev_action
-    if torch.max(torch.abs(delta_action)) > threshold:
-        print(f"[WARN] custom_action_rate_l2: delta_action exceeds threshold {threshold}!")
-    delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
+    # if torch.max(torch.abs(delta_action)) > threshold:
+    #     print(f"[WARN] custom_action_rate_l2: delta_action exceeds threshold {threshold}!")
+    # delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
     pen = torch.sum(torch.square(delta_action), dim=1)
 
     will_reset = env.reset_buf

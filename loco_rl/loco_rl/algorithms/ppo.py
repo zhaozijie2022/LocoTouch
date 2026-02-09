@@ -333,6 +333,11 @@ class PPO:
             else:
                 value_loss = (returns_batch - value_batch).pow(2).mean()
 
+            # if value_loss > 10.0:
+            #     print("[WARN] Skip batch: large value loss =", value_loss.item())
+            #     self.optimizer.zero_grad(set_to_none=True)
+            #     continue
+
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
 
             # # 最终检测

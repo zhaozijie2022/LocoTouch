@@ -88,14 +88,20 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
                 ),
                 # TODO boxes会让机器人掉下去
                 "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                    proportion=0.0, grid_width=0.45, grid_height_range=(0.05, 0.20), platform_width=2.0
+                    proportion=0.2, grid_width=0.45, grid_height_range=(0.05, 0.20), platform_width=2.0
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
-                    proportion=0.4, noise_range=(0.00, 0.10), noise_step=0.005,
+                    proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
                     frequency=0.7, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
                 ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
+                ),
+                "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
+                    proportion=0.2, num_bumps=6, bump_height_range=(0.03, 0.07),
+                    random_flat_ratio=(0.0, 0.40), random_bump_width=(0.30, 0.35),
+                    num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
+                    platform_width=2.0, border_width=0.25,
                 ),
             },
             seed=1,
@@ -304,9 +310,9 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             # heading_control_stiffness=0.5,
             # debug_vis=True,
             ranges=mdp.UniformVelocityCommandMultiSamplingCfg.Ranges(
-                lin_vel_x=(-1.5, 1.5),
-                lin_vel_y=(-0.3, 0.3),
-                ang_vel_z=(-math.pi / 4, math.pi / 4),
+                lin_vel_x=(-1.0, 1.0),
+                lin_vel_y=(-0.0, 0.0),
+                ang_vel_z=(-0.0, 0.0),
             ),
         )
 
@@ -363,6 +369,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         self.rewards.joint_deviation_l2.weight = -0.1
         self.rewards.hip_deviation_l2.weight = -0.3
         self.rewards.stand_still_without_cmd.weight = -0.25
+        self.rewards.base_height_l2.weight = 0.0
         self.disable_zero_weight_rewards()
         # endregion
 

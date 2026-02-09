@@ -77,23 +77,23 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # region Observations
         # 加入背部平台加速度
-        from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-        self.observations.policy.base_lin_acc = ObservationTermCfg(
-            func=mdp.base_lin_acc,
-            scale=0.25,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-            },
-            noise=Unoise(n_min=-0.5, n_max=0.5),
-        )
-
-        self.observations.critic.base_lin_acc = ObservationTermCfg(
-            func=mdp.base_lin_acc,
-            scale=0.25,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-            },
-        )
+        # from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+        # self.observations.policy.base_lin_acc = ObservationTermCfg(
+        #     func=mdp.base_lin_acc,
+        #     scale=0.25,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     },
+        #     noise=Unoise(n_min=-0.5, n_max=0.5),
+        # )
+        #
+        # self.observations.critic.base_lin_acc = ObservationTermCfg(
+        #     func=mdp.base_lin_acc,
+        #     scale=0.25,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     },
+        # )
         # endregion
 
         # region Actions
@@ -158,15 +158,16 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # endregion
 
-        # region ------------------------------Curriculums------------------------------
+        # region Curriculums
         self.curriculum.command_z_levels = None
         # endregion
 
-        # region ------------------------------Rewards------------------------------
+        # region Rewards
         import locotouch.mdp.custom_reward_funcs as custom_reward_funcs
 
         # 增加了reset屏蔽和clip
         self.rewards.action_rate_l2.func = custom_reward_funcs.custom_action_rate_l2
+        self.rewards.action_rate_l2 = None
         # self.rewards.action_rate_l2.params={
         #     "threshold": 7.0, # raw_action,
         # },
@@ -245,35 +246,34 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
         from locotouch.config.base.locomotion_base_env_cfg import smaller_scene_for_playing
         smaller_scene_for_playing(self)
 
-        # ---------------------------------------------------------------------
-        # Play 时固定 commands 范围（避免 curriculum 训练时的动态范围影响 play）
-        # 方案：直接把 commands 的 ranges 设成“最终想要的范围”，并同步 curriculum 的 range_multiplier
-        # ---------------------------------------------------------------------
+        if self.scene.terrain.terrain_type == "generator":
+            self.scene.terrain.terrain_generator.border_width = 5.0
+            self.scene.terrain.terrain_generator.num_rows = 4
+            self.scene.terrain.terrain_generator.num_cols = 4
+        else:
+            play_command_maximum_ranges = [
+                self.commands.base_velocity.ranges.lin_vel_x[1],  # 1.0
+                self.commands.base_velocity.ranges.lin_vel_y[1],  # 0.5
+                self.commands.base_velocity.ranges.ang_vel_z[1],  # pi/4
+            ]
 
-        # 你想在 play 用的最大范围（建议与你训练时最终期望的一致）
-        play_command_maximum_ranges = [
-            self.commands.base_velocity.ranges.lin_vel_x[1],  # 1.0
-            self.commands.base_velocity.ranges.lin_vel_y[1],  # 0.5
-            self.commands.base_velocity.ranges.ang_vel_z[1],  # pi/4
-        ]
+            # 1) 覆盖 commands ranges
+            self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
+            self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
+            self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
 
-        # 1) 覆盖 commands ranges
-        self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
-        self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
-        self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
+            # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
+            self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
+            self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
 
-        # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
-        self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
-        self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
-
-        # 3) 避免 play 时 curriculum 还在“缩放 range”
-        #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
-        #    play 直接设成 (1.0, 1.0) 让它不再变化
-        if getattr(self, "curriculum", None) is not None:
-            if getattr(self.curriculum, "command_xy_levels", None) is not None:
-                self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
-            if getattr(self.curriculum, "command_z_levels", None) is not None:
-                self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
+            # 3) 避免 play 时 curriculum 还在“缩放 range”
+            #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
+            #    play 直接设成 (1.0, 1.0) 让它不再变化
+            if getattr(self, "curriculum", None) is not None:
+                if getattr(self.curriculum, "command_xy_levels", None) is not None:
+                    self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
+                if getattr(self.curriculum, "command_z_levels", None) is not None:
+                    self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
 
 
 

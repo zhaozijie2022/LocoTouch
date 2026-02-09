@@ -1,5 +1,5 @@
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
+from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg, DelayedPDActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 
@@ -48,22 +48,25 @@ Go2W_TRANSPORT_CFG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.9,  # 软限位系数（与 go1 的 0.95 不同），会影响关节限制的松紧
     actuators={
-        "legs": DCMotorCfg(
+        "legs": DelayedPDActuatorCfg(
             joint_names_expr=["^(?!.*_foot_joint).*"],
             effort_limit=23.5,
-            saturation_effort=23.5,
             velocity_limit=30.0,
-            stiffness=25.0,
-            damping=0.5,
+            stiffness=50.0,
+            damping=1.0,
             friction=0.0,
+            min_delay=0,
+            max_delay=15,
         ),
-        "wheels": ImplicitActuatorCfg(
+        "wheels": DelayedPDActuatorCfg(
             joint_names_expr=[".*_foot_joint"],
-            effort_limit_sim=23.5,
-            velocity_limit_sim=30.0,
+            effort_limit=23.5,
+            velocity_limit=30.0,
             stiffness=0.0,
             damping=0.5,
             friction=0.0,
+            min_delay=0,
+            max_delay=15,
         ),
     },
 )
