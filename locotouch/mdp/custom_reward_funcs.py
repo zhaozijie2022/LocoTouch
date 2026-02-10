@@ -113,9 +113,9 @@ def object_lose_contact_ngt(
     return torch.logical_and(last_contact_time > 0.0, current_air_time > 0.0).reshape(-1)
 
 
-# ----- Base Control -----
+# region----- Base Control -----
 
-def track_lin_vel_x_exp(
+def custom_track_lin_vel_x_exp(
     env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
     """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
@@ -123,7 +123,48 @@ def track_lin_vel_x_exp(
     asset: RigidObject = env.scene[asset_cfg.name]
     # compute the error
     lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 0] - asset.data.root_lin_vel_b[:, 0])
-    return torch.exp(-lin_vel_error / std ** 2)
+    reward = torch.exp(-lin_vel_error / std**2)
+    reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
+    return reward
+
+def custom_track_lin_vel_y_exp(
+    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the error
+    lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 1] - asset.data.root_lin_vel_b[:, 1])
+    reward = torch.exp(-lin_vel_error / std**2)
+    reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
+    return reward
+
+def custom_track_ang_vel_z_exp(
+    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Reward tracking of angular velocity commands (yaw) using exponential kernel."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the error
+    ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_b[:, 2])
+    reward = torch.exp(-ang_vel_error / std**2)
+    reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
+    return reward
+
+def base_roll_angle_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """
+    Penalize the roll angle of the base using L2 squared kernel.
+    Ensures that the roll angle is in the range [-pi, pi] to avoid instability due to angle wrapping.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
+    roll_angle = euler_xyz_from_quat(body_quat)[:, 0]  # (num_envs,)
+    # Ensure angle is always in [-pi, pi]
+    roll_angle_normalized = (roll_angle + torch.pi) % (2 * torch.pi) - torch.pi
+    return torch.square(roll_angle_normalized)
 
 def _smoothstep01(x: torch.Tensor) -> torch.Tensor:
     # smoothstep: 3x^2 - 2x^3, x in [0,1]
@@ -159,16 +200,6 @@ def track_lin_vel_x_exp_acc_gated(
 
     return r_track * gate
 
-
-def track_lin_vel_y_exp(
-    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
-    # extract the used quantities (to enable type-hinting)
-    asset: RigidObject = env.scene[asset_cfg.name]
-    # compute the error
-    lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 1] - asset.data.root_lin_vel_b[:, 1])
-    return torch.exp(-lin_vel_error / std**2)
 
 def joint_action_rate_l2(
     env: ManagerBasedRLEnv,
@@ -224,9 +255,9 @@ def custom_action_rate_l2(
     # 即将要reset的env, action rate penalty为0
     # 刚刚reset完的env, action rate penalty为0
     delta_action = env.action_manager.action - env.action_manager.prev_action
-    # if torch.max(torch.abs(delta_action)) > threshold:
-    #     print(f"[WARN] custom_action_rate_l2: delta_action exceeds threshold {threshold}!")
-    # delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
+    if torch.max(torch.abs(delta_action)) > threshold:
+        print(f"[WARN] custom_action_rate_l2: delta_action exceeds threshold {threshold}!")
+    delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
     pen = torch.sum(torch.square(delta_action), dim=1)
 
     will_reset = env.reset_buf
@@ -235,7 +266,31 @@ def custom_action_rate_l2(
 
     return torch.where(mask, torch.zeros_like(pen), pen)
 
+def custom_base_height_l2(
+    env: ManagerBasedRLEnv,
+    target_height: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+    """Penalize asset height from its target using L2 squared kernel.
 
+    Note:
+        For flat terrain, target height is in the world frame. For rough terrain,
+        sensor readings can adjust the target height to account for the terrain.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    if sensor_cfg is not None:
+        sensor: RayCaster = env.scene[sensor_cfg.name]
+        # Adjust the target height using the sensor data
+        base_ray_hits_w = sensor.data.ray_hits_w[..., 2]
+        base_ray_hits_w = torch.nan_to_num(base_ray_hits_w, nan=target_height)
+        adjusted_target_height = target_height + torch.mean(base_ray_hits_w, dim=1)
+    else:
+        # Use the provided target height directly for flat terrain
+        adjusted_target_height = target_height
+    # Compute the L2 squared penalty
+    return torch.square(asset.data.root_pos_w[:, 2] - adjusted_target_height)
 
 
 

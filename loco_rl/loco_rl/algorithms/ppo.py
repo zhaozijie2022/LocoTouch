@@ -47,6 +47,8 @@ class PPO:
         rnd_cfg: dict | None = None,
         # Symmetry parameters
         symmetry_cfg: dict | None = None,
+        clip_value_min: float | None = -5.0,
+        clip_value_max: float | None = 10.0,
     ):
         self.device = device
 
@@ -106,6 +108,9 @@ class PPO:
         self.lam = lam
         self.max_grad_norm = max_grad_norm
         self.use_clipped_value_loss = use_clipped_value_loss
+
+        self.clip_value_min = clip_value_min
+        self.clip_value_max = clip_value_max
 
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
         # create memory for RND as well :)
@@ -194,6 +199,7 @@ class PPO:
             mean_symmetry_loss = 0
         else:
             mean_symmetry_loss = None
+        mean_value = 0
 
         # generator for mini batches
         if self.actor_critic.is_recurrent:
@@ -320,10 +326,26 @@ class PPO:
             surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(
                 ratio, 1.0 - self.clip_param, 1.0 + self.clip_param
             )
-            surrogate_loss = torch.max(surrogate, surrogate_clipped).mean()
+            # 原始 PPO surrogate loss
+            unclipped_surrogate_loss = torch.max(surrogate, surrogate_clipped)
+            # 绝对值裁剪到[-0.015, 0.015]
+            clipped_surrogate_loss = torch.clamp(unclipped_surrogate_loss, -0.015, 0.015)
+            surrogate_loss = clipped_surrogate_loss.mean()
 
-            # Value function loss
+            # 1. Absolute Value Clipping (Pre-processing)
+            # Handle the raw data first to ensure no value explodes to e+30.
+            if self.clip_value_min is not None and self.clip_value_max is not None:
+                # Clamp the ground truth returns
+                returns_batch = torch.clamp(returns_batch, self.clip_value_min, self.clip_value_max)
+                # Clamp the old value predictions
+                target_values_batch = torch.clamp(target_values_batch, self.clip_value_min, self.clip_value_max)
+                # Clamp the current network predictions
+                value_batch = torch.clamp(value_batch, self.clip_value_min, self.clip_value_max)
+
+            # 2. Loss Calculation
             if self.use_clipped_value_loss:
+                # Standard PPO relative clipping
+                # We don't need extra absolute clamping here because inputs are already safe.
                 value_clipped = target_values_batch + (value_batch - target_values_batch).clamp(
                     -self.clip_param, self.clip_param
                 )
@@ -412,6 +434,8 @@ class PPO:
             # -- Symmetry loss
             if mean_symmetry_loss is not None:
                 mean_symmetry_loss += symmetry_loss.item()
+            
+            mean_value += value_batch.mean().item()
 
         # -- For PPO
         num_updates = self.num_learning_epochs * self.num_mini_batches
@@ -424,7 +448,9 @@ class PPO:
         # -- For Symmetry
         if mean_symmetry_loss is not None:
             mean_symmetry_loss /= num_updates
+
+        mean_value /= num_updates
         # -- Clear the storage
         self.storage.clear()
 
-        return mean_value_loss, mean_surrogate_loss, mean_entropy, mean_rnd_loss, mean_symmetry_loss
+        return mean_value_loss, mean_surrogate_loss, mean_entropy, mean_rnd_loss, mean_symmetry_loss, mean_value

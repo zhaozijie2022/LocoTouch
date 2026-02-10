@@ -369,7 +369,6 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         self.rewards.joint_deviation_l2.weight = -0.1
         self.rewards.hip_deviation_l2.weight = -0.3
         self.rewards.stand_still_without_cmd.weight = -0.25
-        self.rewards.base_height_l2.weight = 0.0
         self.disable_zero_weight_rewards()
         # endregion
 

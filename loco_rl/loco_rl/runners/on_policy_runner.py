@@ -215,7 +215,7 @@ class OnPolicyRunner:
 
             # Update policy
             # Note: we keep arguments here since locals() loads them
-            mean_value_loss, mean_surrogate_loss, mean_entropy, mean_rnd_loss, mean_symmetry_loss = self.alg.update()
+            mean_value_loss, mean_surrogate_loss, mean_entropy, mean_rnd_loss, mean_symmetry_loss, mean_value = self.alg.update()
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it
@@ -283,6 +283,7 @@ class OnPolicyRunner:
             self.writer.add_scalar("Loss/rnd", locs["mean_rnd_loss"], locs["it"])
         if self.alg.symmetry:
             self.writer.add_scalar("Loss/symmetry", locs["mean_symmetry_loss"], locs["it"])
+        self.writer.add_scalar("Loss/value", locs["mean_value"], locs["it"])
 
         # -- Policy
         self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])

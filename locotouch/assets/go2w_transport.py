@@ -21,15 +21,15 @@ Go2W_TRANSPORT_CFG = ArticulationCfg(
             max_depenetration_velocity=1.0, # 最大穿透速度
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=False,
+            enabled_self_collisions=True,
             solver_position_iteration_count=4,
             solver_velocity_iteration_count=0
         ),
-        # collision_props=sim_utils.CollisionPropertiesCfg(
-        #     collision_enabled=True,
-        #     contact_offset=1.0e-9,
-        #     rest_offset=-0.004,
-        # ),
+        collision_props=sim_utils.CollisionPropertiesCfg(
+            collision_enabled=True,
+            contact_offset=0.005,
+            rest_offset=0.0,
+        ),
         joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
             gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
         ),  # 用于 URDF->Isaac 转换时的关节驱动初始增益，这里把 PD 增益置为 0（即让后端驱动配置负责控制）
@@ -48,25 +48,26 @@ Go2W_TRANSPORT_CFG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.9,  # 软限位系数（与 go1 的 0.95 不同），会影响关节限制的松紧
     actuators={
-        "legs": DelayedPDActuatorCfg(
+        "legs": DCMotorCfg(
             joint_names_expr=["^(?!.*_foot_joint).*"],
             effort_limit=23.5,
+            saturation_effort=23.5,
             velocity_limit=30.0,
             stiffness=50.0,
             damping=1.0,
             friction=0.0,
-            min_delay=0,
-            max_delay=15,
+
+
         ),
-        "wheels": DelayedPDActuatorCfg(
+        "wheels": ImplicitActuatorCfg(
             joint_names_expr=[".*_foot_joint"],
-            effort_limit=23.5,
-            velocity_limit=30.0,
+            effort_limit_sim=23.5,
+            velocity_limit_sim=30.0,
             stiffness=0.0,
             damping=0.5,
             friction=0.0,
-            min_delay=0,
-            max_delay=15,
+
+
         ),
     },
 )

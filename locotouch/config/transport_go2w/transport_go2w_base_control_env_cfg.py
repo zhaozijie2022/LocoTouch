@@ -46,17 +46,17 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                     proportion=0.2
                 ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
+                    proportion=0.0, noise_range=(0.00, 0.02), noise_step=0.005, border_width=0.25
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
-                    proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
+                    proportion=0.4, noise_range=(0.02, 0.10), noise_step=0.005,
                     frequency=0.7, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
                 ),
                 "x_wave": custom_terrain_gen.HfXWaveTerrainCfg(
-                    proportion=0.3, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
+                    proportion=0.0, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
                 ),
                 "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
-                    proportion=0.3, num_bumps=6, bump_height_range=(0.03, 0.07),
+                    proportion=0.4, num_bumps=6, bump_height_range=(0.03, 0.07),
                     random_flat_ratio=(0.0, 0.40), random_bump_width=(0.30, 0.35),
                     num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
@@ -76,7 +76,20 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region Observations
-        # 加入背部平台加速度
+        # 仅 last_action 用 history=1，其余 term 保持 6：将组 history_length 置为 None 以使用 per-term 配置
+        self.observations.policy.history_length = None
+        self.observations.critic.history_length = None
+        self.observations.policy.last_action = ObservationTermCfg(
+            func=mdp.last_action,
+            scale=1.0,
+            history_length=1,
+        )
+        self.observations.critic.last_action = ObservationTermCfg(
+            func=mdp.last_action,
+            scale=1.0,
+            history_length=1,
+        )
+        # 加入背部平台加速度（可选）
         # from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
         # self.observations.policy.base_lin_acc = ObservationTermCfg(
         #     func=mdp.base_lin_acc,
@@ -117,7 +130,6 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             use_default_offset=True,
             clip={".*": (-100.0, 100.0,)},
             # clip={".*": (-10.0, 10.0)},
-            preserve_order=True,
         )
         # endregion
 
@@ -127,10 +139,27 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # reset:
         # 机器人初始化位置
-        self.events.reset_base.params["pose_range"]["x"] = (-0, 0)  # 保证在中心平台
-        self.events.reset_base.params["pose_range"]["y"] = (-0, 0)
-        self.events.reset_base.params["pose_range"]["yaw"] = (-math.pi, math.pi)
-
+        # self.events.reset_base.params["pose_range"]["x"] = (-0, 0)  # 保证在中心平台
+        # self.events.reset_base.params["pose_range"]["y"] = (-0, 0)
+        # self.events.reset_base.params["pose_range"]["yaw"] = (-math.pi, math.pi)
+        self.events.reset_base.params = {
+            "pose_range": {
+                "x": (-0.0, 0.0),
+                "y": (-0.0, 0.0),
+                "z": (0.1, 0.1),
+                "roll": (-0.0, 0.0),
+                "pitch": (-0.0, 0.0),
+                "yaw": (-math.pi, math.pi),
+            },
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.15, 0.15),
+                "z": (-0.2, 0.2),
+                "roll": (-0.0, 0.0),
+                "pitch": (-0.0, 0.0),
+                "yaw": (-0.0, 0.0),
+            }
+        }
         # interval:
 
         # endregion
@@ -167,7 +196,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # 增加了reset屏蔽和clip
         self.rewards.action_rate_l2.func = custom_reward_funcs.custom_action_rate_l2
-        self.rewards.action_rate_l2 = None
+        # self.rewards.action_rate_l2 = None
         # self.rewards.action_rate_l2.params={
         #     "threshold": 7.0, # raw_action,
         # },
@@ -176,27 +205,42 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # self.rewards.joint_wheel_acc_l2.weight = -5e-8 # 增大轮子加速度惩罚
         # self.rewards.joint_torques_l2.weight = -5.0e-4 # 增大关节力矩惩罚
 
-        # 惩罚 roll & pitch -0.5 -> -5.0
-        self.rewards.flat_orientation_l2.weight = -5.0
-        # 抑制背部平台的晃动 -1.0 -> -5.0
+        # 惩罚 roll & pitch -0.5 -> -15.0
+        self.rewards.flat_orientation_l2.weight = -10.0
+        # 抑制背部平台的上下速度 -1.0 -> -5.0
         self.rewards.lin_vel_z_l2.weight = -5.0
         # xy方向角速度就是roll和pitch的角速度惩罚 -0.05 -> -0.25
         self.rewards.ang_vel_xy_l2.weight = -0.25
+        # 额外惩罚base的俯仰角roll
+        self.rewards.base_roll_angle_l2 = RewardTermCfg(
+            func=custom_reward_funcs.base_roll_angle_l2,
+            weight=-10.0,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+            }
+        )
 
         # 鼓励速度跟踪
         self.rewards.track_lin_vel_xy_exp = None
         self.rewards.track_lin_vel_x_exp = RewardTermCfg(
-            func=custom_reward_funcs.track_lin_vel_x_exp,
+            func=custom_reward_funcs.custom_track_lin_vel_x_exp,
             weight=1.0,
             params={
                 "command_name": "base_velocity",
                 "std": math.sqrt(0.25),
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
             }
         )
         # cmd没有y方向速度, 这里的0.75是鼓励y方向不要漂移
         self.rewards.track_lin_vel_y_exp = RewardTermCfg(
-            func=custom_reward_funcs.track_lin_vel_y_exp,
+            func=custom_reward_funcs.custom_track_lin_vel_y_exp,
+            weight=0.75,
+            params={
+                "command_name": "base_velocity",
+                "std": math.sqrt(0.25),
+            }
+        )
+        self.rewards.track_ang_vel_z_exp = RewardTermCfg(
+            func=custom_reward_funcs.custom_track_ang_vel_z_exp,
             weight=0.75,
             params={
                 "command_name": "base_velocity",
@@ -225,6 +269,18 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "threshold": (1.5, 10.0),
                 "xyz": (1.0, 2.0, 2.0)
+            }
+        )
+
+        # 移除joint_deviation, 保留stand_still_without_cmd和base_height
+        # self.rewards.joint_deviation_l2 = None
+        self.rewards.base_height_l2 = RewardTermCfg(
+            func=custom_reward_funcs.custom_base_height_l2,
+            weight=-10.0,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+                "sensor_cfg": SceneEntityCfg("height_scanner_base"),
+                "target_height": 0.40,
             }
         )
 
