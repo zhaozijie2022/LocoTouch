@@ -160,11 +160,7 @@ def base_roll_angle_l2(
     Ensures that the roll angle is in the range [-pi, pi] to avoid instability due to angle wrapping.
     """
     asset: Articulation = env.scene[asset_cfg.name]
-    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
-    roll_angle = euler_xyz_from_quat(body_quat)[:, 0]  # (num_envs,)
-    # Ensure angle is always in [-pi, pi]
-    roll_angle_normalized = (roll_angle + torch.pi) % (2 * torch.pi) - torch.pi
-    return torch.square(roll_angle_normalized)
+    return torch.square(asset.data.projected_gravity_b[:, 1])
 
 def _smoothstep01(x: torch.Tensor) -> torch.Tensor:
     # smoothstep: 3x^2 - 2x^3, x in [0,1]

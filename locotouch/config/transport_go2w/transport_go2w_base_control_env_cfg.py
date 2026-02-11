@@ -134,14 +134,10 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region Events
-        pass
         # startup:
 
         # reset:
-        # 机器人初始化位置
-        # self.events.reset_base.params["pose_range"]["x"] = (-0, 0)  # 保证在中心平台
-        # self.events.reset_base.params["pose_range"]["y"] = (-0, 0)
-        # self.events.reset_base.params["pose_range"]["yaw"] = (-math.pi, math.pi)
+        # 机器人初始化位置（相对于地形原点）
         self.events.reset_base.params = {
             "pose_range": {
                 "x": (-0.0, 0.0),
@@ -301,6 +297,71 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
 
         from locotouch.config.base.locomotion_base_env_cfg import smaller_scene_for_playing
         smaller_scene_for_playing(self)
+
+
+        env_num = self.scene.num_envs
+        radius_range = (0.05, 0.05)  # (0.025, 0.075)
+
+        # height_range = (0.15, 0.25)
+        # size_range = np.array([radius_range, height_range])
+        # size_samples = np.random.uniform(size_range[:, 0], size_range[:, 1], (env_num, 2))
+
+        hr_ratio_range = (4.0, 4.0)  # (3.0, 6.0)
+        radii = np.random.uniform(radius_range[0], radius_range[1], size=(env_num, 1))
+        hr_ratios = np.random.uniform(hr_ratio_range[0], hr_ratio_range[1], size=(env_num, 1))
+        heights = radii * hr_ratios
+        size_samples = np.concatenate([radii, heights], axis=1)
+
+        color_samples = np.random.uniform(0.0, 1.0, (env_num, 3)).astype(np.float32)
+        self.scene.object = RigidObjectCfg(
+            prim_path="/World/envs/env_.*/Object",
+            spawn=sim_utils.MultiAssetSpawnerCfg(  # 根据上述的采样生成多个object
+                assets_cfg=[
+                    sim_utils.CylinderCfg(
+                        radius=float(size_samples[i, 0]),
+                        height=float(size_samples[i, 1]),
+                        axis="Z",
+                        visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(map(float, color_samples[i]))),
+                    )  # type: ignore
+                    for i in range(env_num)
+                ],
+                random_choice=False,  # 表示不是随机复用, 而是每个环境一个独立的object
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                    solver_position_iteration_count=16,
+                    solver_velocity_iteration_count=1,
+                    max_angular_velocity=1000.0,
+                    max_linear_velocity=1000.0,
+                    max_depenetration_velocity=5.0,
+                    disable_gravity=False,
+                ),
+                activate_contact_sensors=True,
+                mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+                collision_props=sim_utils.CollisionPropertiesCfg(
+                    collision_enabled=True,
+                    contact_offset=0.005,
+                    rest_offset=0.0
+                ),
+            ),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+        )
+
+        self.events.reset_object_position = EventTermCfg(
+            func=mdp.ResetObjectStateUniform,
+            mode="reset",
+            params={
+                "pose_range": {
+                    "x": (-0.00, 0.00),
+                    "y": (-0.00, 0.00),
+                    "z": (0.05, 0.05),
+                    "roll": (0.0, 0.0),
+                    "pitch": (0.0, 0.0),
+                    "yaw": (-0.0, 0.0)
+                },
+                "velocity_range": {},
+                "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+                "reference_asset_cfg": SceneEntityCfg("robot"),
+            },
+        )
 
         if self.scene.terrain.terrain_type == "generator":
             self.scene.terrain.terrain_generator.border_width = 5.0

@@ -326,11 +326,7 @@ class PPO:
             surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(
                 ratio, 1.0 - self.clip_param, 1.0 + self.clip_param
             )
-            # 原始 PPO surrogate loss
-            unclipped_surrogate_loss = torch.max(surrogate, surrogate_clipped)
-            # 绝对值裁剪到[-0.015, 0.015]
-            clipped_surrogate_loss = torch.clamp(unclipped_surrogate_loss, -0.015, 0.015)
-            surrogate_loss = clipped_surrogate_loss.mean()
+            surrogate_loss = torch.max(surrogate, surrogate_clipped).mean()
 
             # 1. Absolute Value Clipping (Pre-processing)
             # Handle the raw data first to ensure no value explodes to e+30.
