@@ -1,7 +1,7 @@
 import math
 import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
-from isaaclab.managers import SceneEntityCfg, EventTermCfg, TerminationTermCfg, RewardTermCfg, ObservationTermCfg, CurriculumTermCfg
+from isaaclab.managers import SceneEntityCfg, EventTermCfg, TerminationTermCfg, RewardTermCfg, ObservationTermCfg, CurriculumTermCfg, ObservationGroupCfg
 from isaaclab.utils import configclass
 
 import numpy as np
@@ -11,6 +11,31 @@ from locotouch.config.go2w.locomotion_go2w_env_cfg import LocomotionGo2WEnvCfg
 
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 import locotouch.mdp.custom_reward_funcs as object_reward_funcs
+
+
+@configclass
+class NoisyObjectStateCfg(ObservationGroupCfg):
+    object_state = ObservationTermCfg(
+        func=mdp.object_state_in_robot_frame,
+        scale=1.0,
+        history_length=6,
+        params={
+            "robot_cfg": SceneEntityCfg("robot"),
+            "object_cfg": SceneEntityCfg("object"),
+            "sensor_cfg": SceneEntityCfg("object_contact_sensor", body_names="Object"),
+            "last_contact_time_threshold": 0.00000001,
+            "current_contact_time_threshold": 0.00000001,  # at the N-th step's contact, the robot can sense the object state
+            "non_contact_obs": [0.0]*3 + [0.0]*3 + [1.0] +[0.0]*3 + [0.0]*3,
+            "add_uniform_noise": True,
+            "n_min": [-0.01, -0.01, -0.005] + [-0.2]*3 + [-0.05]*3 + [-0.2]*3,  # euler angles noise although obs is quaternion
+            "n_max": [0.01, 0.01, 0.005] + [0.2]*3 + [0.05]*3 + [0.2]*3,
+            "scale": [1.0]*3 + [0.5]*3 + [1.0]*4 + [0.25]*3,
+        },
+    )
+
+    def __post_init__(self):
+        self.enable_corruption = True
+        self.concatenate_terms = True
 
 
 @configclass
@@ -82,7 +107,6 @@ class TransportGo2WTeacherEnvCfg(LocomotionGo2WEnvCfg):
 
         # region ------------------------------Observations------------------------------
         # 添加物体相关的观测, 标准 13维状态, 未碰撞时为 non_contact_obs
-        from locotouch.config.locotouch.object_transport_teacher_env_cfg import NoisyObjectStateCfg
         # 移除 policy 中与物体相关的观测
         # noisy_object_cfg = NoisyObjectStateCfg()
         # self.observations.policy.object_state = noisy_object_cfg.object_state
