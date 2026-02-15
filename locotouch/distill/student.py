@@ -5,7 +5,7 @@ from tqdm import tqdm
 import os
 from loco_rl.models.model_generation import generate_model
 from loco_rl.models import MLP, RNN, CNN2d, CNN2dHead
-from locotouch.config.locotouch.agents.distillation_cfg import DistillationCfg
+from locotouch.config.go2w.agents.distillation_cfg import DistillationCfg
 from locotouch.distill.replay_buffer import ReplayBuffer
 
 

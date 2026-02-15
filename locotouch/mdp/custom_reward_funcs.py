@@ -3,7 +3,7 @@ import math
 import torch
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg, ManagerTermBase, RewardTermCfg
-from isaaclab.sensors import ContactSensor
+from isaaclab.sensors import ContactSensor, RayCaster
 from isaaclab.utils.math import quat_from_euler_xyz, quat_apply, quat_apply_inverse, euler_xyz_from_quat, quat_inv, quat_mul
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -117,58 +117,67 @@ def object_lose_contact_ngt(
 # region----- Base Control -----
 
 def custom_track_lin_vel_x_exp(
-    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+    env: ManagerBasedRLEnv, 
+    std: float, 
+    command_name: str, 
+    gravity_z_power: float = 2.0,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
+    """鼓励追踪x方向速度, 乘重力在z轴投影鼓励机器人背部水平"""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
     # compute the error
     lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 0] - asset.data.root_lin_vel_b[:, 0])
     reward = torch.exp(-lin_vel_error / std**2)
-    reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
+    # 通过调节乘方的大小来调节重力在z轴投影对奖励的影响程度
+    reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
     return reward
 
 def custom_track_lin_vel_y_exp(
-    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+    env: ManagerBasedRLEnv, 
+    std: float, 
+    command_name: str, 
+    gravity_z_power: float = 2.0,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Reward tracking of linear velocity commands (xy axes) using exponential kernel."""
+    """鼓励追踪y方向速度, 乘重力在z轴投影鼓励机器人背部水平"""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
     # compute the error
     lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 1] - asset.data.root_lin_vel_b[:, 1])
     reward = torch.exp(-lin_vel_error / std**2)
-    reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
+    reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power       
     return reward
 
 def custom_track_ang_vel_z_exp(
-    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+    env: ManagerBasedRLEnv, 
+    std: float, 
+    command_name: str, 
+    gravity_z_power: float = 2.0,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Reward tracking of angular velocity commands (yaw) using exponential kernel."""
+    """鼓励追踪z方向角速度, 乘重力在z轴投影鼓励机器人背部水平"""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
     # compute the error
     ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_b[:, 2])
     reward = torch.exp(-ang_vel_error / std**2)
-    reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
+    reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
     return reward
 
-def base_roll_angle_l2(
+def custom_base_pitch_angle_l2(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """
-    Penalize the roll angle of the base using L2 squared kernel.
-    Ensures that the roll angle is in the range [-pi, pi] to avoid instability due to angle wrapping.
+    额外惩罚 base 的俯仰角 pitch, 避免过减速带时的前后俯仰
+    projected_gravity_b: body 系下重力方向；[0]=x→pitch, [1]=y→roll, [2]=z→直立
     """
     asset: Articulation = env.scene[asset_cfg.name]
-    return torch.square(asset.data.projected_gravity_b[:, 1])
-
-def _smoothstep01(x: torch.Tensor) -> torch.Tensor:
-    # smoothstep: 3x^2 - 2x^3, x in [0,1]
-    return x * x * (3.0 - 2.0 * x)
+    return torch.square(asset.data.projected_gravity_b[:, 0])
 
 import isaaclab.utils.math as math_utils
-def track_lin_vel_x_exp_acc_gated(
+def custom_track_lin_vel_x_exp_acc_gated(
     env: ManagerBasedRLEnv, std: float, command_name: str,
     acc_soft: float, acc_hard: float,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
@@ -192,18 +201,18 @@ def track_lin_vel_x_exp_acc_gated(
     #      = 0                      if ax>=acc_hard
     t = (ax_abs - acc_soft) / (acc_hard - acc_soft + 1e-6)
     t = torch.clamp(t, 0.0, 1.0)
-    gate = 1.0 - _smoothstep01(t)
+    gate = 1.0 - t * t * (3.0 - 2.0 * t)
     gate = torch.where(ax_abs >= acc_hard, torch.zeros_like(gate), gate)
 
     return r_track * gate
 
 
-def joint_action_rate_l2(
+def custom_joint_action_rate_l2(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     which_joint: str = None
 ) -> torch.Tensor:
-    """Penalize the rate of change of the actions using L2 squared kernel."""
+    """惩罚关节动作的变化率, 支持 leg 和 wheel 的单独惩罚"""
     # TODO 没有使用asset_cfg.body_names
     if which_joint == "leg":
         return torch.sum(torch.square(env.action_manager.action[:, :12] - env.action_manager.prev_action[:, :12]), dim=1)
@@ -216,13 +225,13 @@ def joint_action_rate_l2(
 
 
 from typing import Tuple
-def base_acc_l2(
+def custom_base_acc_l2(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     threshold: Tuple[float, float] = (1.5, 5.0),
     xyz: Tuple [float, float, float] = (1.0, 1.0, 1.0),
 ) -> torch.Tensor:
-    """Penalize the acceleration of the base using L2 squared kernel."""
+    """惩罚 base 的加速度, 支持 xyz 的加权"""
     assert sum(xyz) > 0 and min(xyz) >= 0
     thr0, thr1 = threshold
     assert thr1 > thr0 >= 0
@@ -235,12 +244,12 @@ def base_acc_l2(
     pen = torch.clamp(torch.square(acc_b) - thr0, min=0.0, max=(thr1 - thr0)**2)
     return torch.sum(pen * torch.tensor(xyz, device=pen.device), dim=1) / sum(xyz)
 
-def custom_action_rate_l2(
+def custom_action_rate_l2_with_clip(
     env: ManagerBasedRLEnv,
     threshold: float = 7.0,
 ) -> torch.Tensor:
 
-    """Penalize the rate of change of the actions using L2 squared kernel."""
+    """惩罚动作的变化率, 支持 reset 屏蔽和 clip"""
     # env.action_manager.action和prev_action 都是process之前的, 模型直接输出的 raw_action
     # env.reset_buf中记录的是要去reset的envs, 刚 reset 完没有记录
     # check env.action_manager.prev_action, 当全都是0的时候说明刚reset完
@@ -253,7 +262,7 @@ def custom_action_rate_l2(
     # 刚刚reset完的env, action rate penalty为0
     delta_action = env.action_manager.action - env.action_manager.prev_action
     if torch.max(torch.abs(delta_action)) > threshold:
-        print(f"[WARN] custom_action_rate_l2: delta_action exceeds threshold {threshold}!")
+        print(f"[WARN] custom_action_rate_l2_with_clip: delta_action exceeds threshold {threshold}!")
     delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
     pen = torch.sum(torch.square(delta_action), dim=1)
 
@@ -266,14 +275,12 @@ def custom_action_rate_l2(
 def custom_base_height_l2(
     env: ManagerBasedRLEnv,
     target_height: float,
+    terrain_height_threshold: Tuple[float, float] = (-0.2, 0.2),
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     sensor_cfg: SceneEntityCfg | None = None,
 ) -> torch.Tensor:
-    """Penalize asset height from its target using L2 squared kernel.
-
-    Note:
-        For flat terrain, target height is in the world frame. For rough terrain,
-        sensor readings can adjust the target height to account for the terrain.
+    """
+        惩罚 base 的世界 z 与期望 z 的差距, 支持 terrain_height_threshold 的clip
     """
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
@@ -281,7 +288,9 @@ def custom_base_height_l2(
         sensor: RayCaster = env.scene[sensor_cfg.name]
         # Adjust the target height using the sensor data
         base_ray_hits_w = sensor.data.ray_hits_w[..., 2]
-        base_ray_hits_w = torch.nan_to_num(base_ray_hits_w, nan=target_height)
+        # Clamp base_ray_hits_w to avoid NaN and Inf (including -Inf/Inf) before usage
+        base_ray_hits_w = torch.nan_to_num(base_ray_hits_w, nan=0.0, posinf=terrain_height_threshold[1], neginf=terrain_height_threshold[0])
+        base_ray_hits_w = torch.clamp(base_ray_hits_w, min=terrain_height_threshold[0], max=terrain_height_threshold[1])
         adjusted_target_height = target_height + torch.mean(base_ray_hits_w, dim=1)
     else:
         # Use the provided target height directly for flat terrain

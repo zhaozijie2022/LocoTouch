@@ -184,16 +184,14 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # region Rewards
         import locotouch.mdp.custom_reward_funcs as custom_reward_funcs
 
-        # 增加了reset屏蔽和clip
-        self.rewards.action_rate_l2.func = custom_reward_funcs.custom_action_rate_l2
-        # self.rewards.action_rate_l2 = None
-        # self.rewards.action_rate_l2.params={
-        #     "threshold": 7.0, # raw_action,
-        # },
-
-        # self.rewards.action_rate_l2.weight = -0.005 # 减少动作变化惩罚
-        # self.rewards.joint_wheel_acc_l2.weight = -5e-8 # 增大轮子加速度惩罚
-        # self.rewards.joint_torques_l2.weight = -5.0e-4 # 增大关节力矩惩罚
+        # 增加了reset屏蔽和clip, weight不变
+        self.rewards.action_rate_l2 = RewardTermCfg(
+            func=custom_reward_funcs.custom_action_rate_l2_with_clip,
+            weight=-0.01,
+            params={
+                "threshold": 7.0,
+            }
+        )
 
         # 惩罚 roll & pitch -0.5 -> -15.0
         self.rewards.flat_orientation_l2.weight = -10.0
@@ -201,9 +199,9 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         self.rewards.lin_vel_z_l2.weight = -5.0
         # xy方向角速度就是roll和pitch的角速度惩罚 -0.05 -> -0.25
         self.rewards.ang_vel_xy_l2.weight = -0.25
-        # 额外惩罚base的俯仰角roll
-        self.rewards.base_roll_angle_l2 = RewardTermCfg(
-            func=custom_reward_funcs.base_roll_angle_l2,
+        # 额外惩罚base的俯仰角pitch
+        self.rewards.base_pitch_angle_l2 = RewardTermCfg(
+            func=custom_reward_funcs.custom_base_pitch_angle_l2,
             weight=-10.0,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
@@ -253,7 +251,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # 惩罚 base xyz加速度
         self.rewards.base_acc_l2 = RewardTermCfg(
-            func=custom_reward_funcs.base_acc_l2,
+            func=custom_reward_funcs.custom_base_acc_l2,
             weight=-0.01,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
@@ -271,6 +269,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "sensor_cfg": SceneEntityCfg("height_scanner_base"),
                 "target_height": 0.40,
+                "terrain_height_threshold": (-0.2, 0.2),
             }
         )
 

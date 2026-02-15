@@ -12,7 +12,7 @@ from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.dict import print_dict
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
-from locotouch.config.locotouch.agents.distillation_cfg import DistillationCfg
+from locotouch.config.go2w.agents.distillation_cfg import DistillationCfg
 from locotouch.distill import *
 from loco_rl.runners import OnPolicyRunner
 
