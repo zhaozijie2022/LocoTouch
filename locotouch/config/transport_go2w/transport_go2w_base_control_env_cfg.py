@@ -42,12 +42,12 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             slope_threshold=0.75,
             use_cache=False,
             sub_terrains={
-                "flat": terrain_gen.MeshPlaneTerrainCfg(
-                    proportion=0.2
-                ),
-                # "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                #     proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
+                # "flat": terrain_gen.MeshPlaneTerrainCfg(
+                #     proportion=0.2
                 # ),
+                "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+                    proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
+                ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
                     frequency=1.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
@@ -104,16 +104,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region Actions
-        self.actions.joint_pos = mdp.JointPositionActionCfg(
-            asset_name="robot",
-            joint_names=self.leg_joint_names,
-            scale=0.25,
-            use_default_offset=True,
-            clip={".*": (-100.0, 100.0,)},
-            # clip={".*": (-1.2, 1.2)},
-            preserve_order=True,
-        )
-        # self.actions.joint_pos = mdp.JointPositionLowPassActionCfg(
+        # self.actions.joint_pos = mdp.JointPositionActionCfg(
         #     asset_name="robot",
         #     joint_names=self.leg_joint_names,
         #     scale=0.25,
@@ -121,32 +112,41 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         #     clip={".*": (-100.0, 100.0,)},
         #     # clip={".*": (-1.2, 1.2)},
         #     preserve_order=True,
-        #     control_frequency=50.0,
-        #     cut_off_frequency=5.0,
-        #     order=1,
         # )
+        self.actions.joint_pos = mdp.JointPositionLowPassActionCfg(
+            asset_name="robot",
+            joint_names=self.leg_joint_names,
+            scale=0.25,
+            use_default_offset=True,
+            clip={".*": (-100.0, 100.0,)},
+            # clip={".*": (-1.2, 1.2)},
+            preserve_order=True,
+            control_frequency=50.0,
+            cut_off_frequency=5.0,
+            order=1,
+        )
 
         from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
         # 轮子：速度控制（4D）- 与执行器 ImplicitActuatorCfg 对应
-        self.actions.joint_vel = JointVelocityActionCfg(
-            asset_name="robot",
-            joint_names=self.wheel_joint_names,
-            scale=10.0,
-            use_default_offset=True,
-            clip={".*": (-100.0, 100.0,)},
-            # clip={".*": (-10.0, 10.0)},
-        )
-        # self.actions.joint_vel = mdp.JointVelocityLowPassActionCfg(
+        # self.actions.joint_vel = JointVelocityActionCfg(
         #     asset_name="robot",
         #     joint_names=self.wheel_joint_names,
         #     scale=10.0,
         #     use_default_offset=True,
         #     clip={".*": (-100.0, 100.0,)},
         #     # clip={".*": (-10.0, 10.0)},
-        #     control_frequency=50.0,
-        #     cut_off_frequency=5.0,
-        #     order=1,
         # )
+        self.actions.joint_vel = mdp.JointVelocityLowPassActionCfg(
+            asset_name="robot",
+            joint_names=self.wheel_joint_names,
+            scale=10.0,
+            use_default_offset=True,
+            clip={".*": (-100.0, 100.0,)},
+            # clip={".*": (-10.0, 10.0)},
+            control_frequency=50.0,
+            cut_off_frequency=15.0,
+            order=1,
+        )
         # endregion
 
         # region Events

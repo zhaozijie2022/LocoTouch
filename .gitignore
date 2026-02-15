@@ -7,4 +7,5 @@ wandb/
 outputs/
 logs/
 docs/
+minitest.*
 
