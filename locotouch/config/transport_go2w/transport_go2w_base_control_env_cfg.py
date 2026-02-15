@@ -56,13 +56,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 #     proportion=0.0, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
                 # ),
                 "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
-                    proportion=0.3, num_bumps=8, bump_height_range=(0.03, 0.07),
+                    proportion=0.6, num_bumps=8, bump_height_range=(0.03, 0.07),
                     random_flat_ratio=(0.0, 0.40), random_bump_width=(0.30, 0.35),
                     num_gaps=2, random_gap_length=(0.5, 1.5), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
                 ),
                 "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                    proportion=0.3, grid_width=0.45, grid_height_range=(0.02, 0.10), platform_width=2.0
+                    proportion=0.0, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
                 ),
             },
             seed=1,
@@ -105,7 +105,16 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # region Actions
         # TODO 在action的config中直接加入低通滤波, 避免action-rate的崩溃
-        self.actions.joint_pos = mdp.JointPositionActionCfg(
+        # self.actions.joint_pos = mdp.JointPositionActionCfg(
+        #     asset_name="robot",
+        #     joint_names=self.leg_joint_names,
+        #     scale=0.25,
+        #     use_default_offset=True,
+        #     clip={".*": (-100.0, 100.0,)},
+        #     # clip={".*": (-1.2, 1.2)},
+        #     preserve_order=True,
+        # )
+        self.actions.joint_pos = mdp.JointPositionLowPassActionCfg(
             asset_name="robot",
             joint_names=self.leg_joint_names,
             scale=0.25,
@@ -113,17 +122,31 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             clip={".*": (-100.0, 100.0,)},
             # clip={".*": (-1.2, 1.2)},
             preserve_order=True,
+            control_frequency=50.0,
+            cut_off_frequency=5.0,
+            order=2,
         )
 
         from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
         # 轮子：速度控制（4D）- 与执行器 ImplicitActuatorCfg 对应
-        self.actions.joint_vel = JointVelocityActionCfg(
+        # self.actions.joint_vel = JointVelocityActionCfg(
+        #     asset_name="robot",
+        #     joint_names=self.wheel_joint_names,
+        #     scale=10.0,
+        #     use_default_offset=True,
+        #     clip={".*": (-100.0, 100.0,)},
+        #     # clip={".*": (-10.0, 10.0)},
+        # )
+        self.actions.joint_vel = mdp.JointVelocityLowPassActionCfg(
             asset_name="robot",
             joint_names=self.wheel_joint_names,
             scale=10.0,
             use_default_offset=True,
             clip={".*": (-100.0, 100.0,)},
             # clip={".*": (-10.0, 10.0)},
+            control_frequency=50.0,
+            cut_off_frequency=5.0,
+            order=2,
         )
         # endregion
 

@@ -251,26 +251,21 @@ def custom_action_rate_l2_with_clip(
 
     """惩罚动作的变化率, 支持 reset 屏蔽和 clip"""
     # env.action_manager.action和prev_action 都是process之前的, 模型直接输出的 raw_action
-    # env.reset_buf中记录的是要去reset的envs, 刚 reset 完没有记录
-    # check env.action_manager.prev_action, 当全都是0的时候说明刚reset完
-    # env.reset_buf: torch.Tensor, shape: (num_envs,), dtype: torch.bool
-    # env.reset_terminated: torch.Tensor, shape: (num_envs,), dtype: torch.bool
-    # env.reset_time_outs: torch.Tensor, shape: (num_envs,), dtype: torch.bool
     # env.action_manager.prev_action: torch.Tensor, shape: (num_envs, action_dim)
+    # 不要根据env.reset_buf来mask, 因为刚reset的环境, prev_action就应该是0, 依然要求不要突变 `
 
-    # 即将要reset的env, action rate penalty为0
-    # 刚刚reset完的env, action rate penalty为0
     delta_action = env.action_manager.action - env.action_manager.prev_action
     if torch.max(torch.abs(delta_action)) > threshold:
         print(f"[WARN] custom_action_rate_l2_with_clip: delta_action exceeds threshold {threshold}!")
-    delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
+        delta_action = torch.clamp(delta_action, min=-threshold, max=threshold)
     pen = torch.sum(torch.square(delta_action), dim=1)
 
-    will_reset = env.reset_buf
-    just_reset = torch.all(env.action_manager.prev_action.abs() < 1e-6, dim=1)
-    mask = will_reset | just_reset
+    # will_reset = env.reset_buf
+    # just_reset = torch.all(env.action_manager.prev_action.abs() < 1e-6, dim=1)
+    # mask = will_reset | just_reset
 
-    return torch.where(mask, torch.zeros_like(pen), pen)
+    # return torch.where(mask, torch.zeros_like(pen), pen)
+    return pen
 
 def custom_base_height_l2(
     env: ManagerBasedRLEnv,
