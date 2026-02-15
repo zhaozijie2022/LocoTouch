@@ -120,7 +120,7 @@ def custom_track_lin_vel_x_exp(
     env: ManagerBasedRLEnv, 
     std: float, 
     command_name: str, 
-    gravity_z_power: float = 2.0,
+    gravity_z_power: float | None = None,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """鼓励追踪x方向速度, 乘重力在z轴投影鼓励机器人背部水平"""
@@ -130,14 +130,17 @@ def custom_track_lin_vel_x_exp(
     lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 0] - asset.data.root_lin_vel_b[:, 0])
     reward = torch.exp(-lin_vel_error / std**2)
     # 通过调节乘方的大小来调节重力在z轴投影对奖励的影响程度
-    reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
+    if gravity_z_power is not None:
+        reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
+    else:
+        reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
     return reward
 
 def custom_track_lin_vel_y_exp(
     env: ManagerBasedRLEnv, 
     std: float, 
     command_name: str, 
-    gravity_z_power: float = 2.0,
+    gravity_z_power: float | None = None,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """鼓励追踪y方向速度, 乘重力在z轴投影鼓励机器人背部水平"""
@@ -146,14 +149,17 @@ def custom_track_lin_vel_y_exp(
     # compute the error
     lin_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 1] - asset.data.root_lin_vel_b[:, 1])
     reward = torch.exp(-lin_vel_error / std**2)
-    reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power       
+    if gravity_z_power is not None:
+        reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
+    else:
+        reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
     return reward
 
 def custom_track_ang_vel_z_exp(
     env: ManagerBasedRLEnv, 
     std: float, 
     command_name: str, 
-    gravity_z_power: float = 2.0,
+    gravity_z_power: float | None = None,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """鼓励追踪z方向角速度, 乘重力在z轴投影鼓励机器人背部水平"""
@@ -162,7 +168,10 @@ def custom_track_ang_vel_z_exp(
     # compute the error
     ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_b[:, 2])
     reward = torch.exp(-ang_vel_error / std**2)
-    reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
+    if gravity_z_power is not None:
+        reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
+    else:
+        reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
     return reward
 
 def custom_base_pitch_angle_l2(
