@@ -50,20 +50,20 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
-                    frequency=1.0, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
+                    frequency=0.75, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
                 ),
                 # "x_wave": custom_terrain_gen.HfXWaveTerrainCfg(
                 #     proportion=0.0, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
                 # ),
                 "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
-                    proportion=0.6, num_bumps=8, bump_height_range=(0.03, 0.10),
+                    proportion=0.3, num_bumps=8, bump_height_range=(0.03, 0.10),
                     random_flat_ratio=(0.0, 0.40), random_bump_width=(0.20, 0.40),
                     num_gaps=2, random_gap_length=(0.5, 1.0), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
                 ),
-                # "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                #     proportion=0.0, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
-                # ),
+                "boxes": terrain_gen.MeshRandomGridTerrainCfg(
+                    proportion=0.3, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
+                ),
             },
             seed=1,
         )
@@ -258,26 +258,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             }
         )
 
-        # self.rewards.track_lin_vel_x_exp = RewardTermCfg(
-        #     func=custom_reward_funcs.track_lin_vel_x_exp_acc_gated,
-        #     weight=1.0,
-        #     params={
-        #         "command_name": "base_velocity",
-        #         "std": math.sqrt(0.25),
-        #         # acc在1.5到5.0
-        #         "acc_soft": 1.5,  # acc < gR / H; acc < \mu g
-        #         "acc_hard": 5.0,
-        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-        #     }
-        # )
-
         # 惩罚 base xyz加速度
         self.rewards.base_acc_l2 = RewardTermCfg(
             func=custom_reward_funcs.custom_base_acc_l2,
             weight=-0.01,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-                "threshold": (1.5, 10.0),
+                "threshold": (1.0, 10.0),
                 "xyz": (1.0, 1.0, 1.0)
             }
         )
@@ -291,7 +278,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "sensor_cfg": SceneEntityCfg("height_scanner_base"),
                 "target_height": 0.40,
-                "terrain_height_threshold": (-0.2, 0.2),
+                "terrain_height_threshold": (-0.4, 0.4),
             }
         )
 

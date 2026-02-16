@@ -258,7 +258,7 @@ def custom_action_rate_l2_with_clip(
     threshold: float = 7.0,
 ) -> torch.Tensor:
 
-    """惩罚动作的变化率, 支持 reset 屏蔽和 clip"""
+    """惩罚动作的变化率, 支持 clip, 如果启用lowpass, 惩罚的是两个filtered之后的action"""
     # env.action_manager.action和prev_action 都是process之前的, 模型直接输出的 raw_action
     # env.action_manager.prev_action: torch.Tensor, shape: (num_envs, action_dim)
     # 不要根据env.reset_buf来mask, 因为刚reset的环境, prev_action就应该是0, 依然要求不要突变 `
