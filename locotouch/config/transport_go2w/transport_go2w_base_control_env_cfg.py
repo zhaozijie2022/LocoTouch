@@ -22,6 +22,9 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # ========== 机器人配置 ==========
         # increase the rigid patch count for more objects
+        # TODO 测试用
+        # self.scene.num_envs = 4  
+
         self.scene.replicate_physics = False
         self.scene.robot = Robot_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # self.scene.num_envs = 20
@@ -42,11 +45,11 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             slope_threshold=0.75,
             use_cache=False,
             sub_terrains={
-                # "flat": terrain_gen.MeshPlaneTerrainCfg(
-                #     proportion=0.2
-                # ),
+                "flat": terrain_gen.MeshPlaneTerrainCfg(
+                    proportion=0.2
+                ),
                 "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005, border_width=0.25
+                    proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
                 ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
@@ -56,13 +59,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 #     proportion=0.0, amplitude_range=(0.04, 0.10), wave_length=(1.55, 1.65), border_width=0.25
                 # ),
                 "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
-                    proportion=0.3, num_bumps=8, bump_height_range=(0.03, 0.10),
+                    proportion=0.5, num_bumps=8, bump_height_range=(0.03, 0.20),
                     random_flat_ratio=(0.0, 0.40), random_bump_width=(0.20, 0.40),
                     num_gaps=2, random_gap_length=(0.5, 1.0), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
                 ),
                 "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                    proportion=0.3, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
+                    proportion=0.1, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
                 ),
             },
             seed=1,
@@ -104,15 +107,6 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # endregion
 
         # region Actions
-        # self.actions.joint_pos = mdp.JointPositionActionCfg(
-        #     asset_name="robot",
-        #     joint_names=self.leg_joint_names,
-        #     scale=0.25,
-        #     use_default_offset=True,
-        #     clip={".*": (-100.0, 100.0,)},
-        #     # clip={".*": (-1.2, 1.2)},
-        #     preserve_order=True,
-        # )
         self.actions.joint_pos = mdp.JointPositionLowPassActionCfg(
             asset_name="robot",
             joint_names=self.leg_joint_names,
@@ -128,14 +122,6 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         from isaaclab.envs.mdp import JointVelocityActionCfg  # 轮子速度控制
         # 轮子：速度控制（4D）- 与执行器 ImplicitActuatorCfg 对应
-        # self.actions.joint_vel = JointVelocityActionCfg(
-        #     asset_name="robot",
-        #     joint_names=self.wheel_joint_names,
-        #     scale=10.0,
-        #     use_default_offset=True,
-        #     clip={".*": (-100.0, 100.0,)},
-        #     # clip={".*": (-10.0, 10.0)},
-        # )
         self.actions.joint_vel = mdp.JointVelocityLowPassActionCfg(
             asset_name="robot",
             joint_names=self.wheel_joint_names,
@@ -158,7 +144,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             "pose_range": {
                 "x": (-0.0, 0.0),
                 "y": (-0.0, 0.0),
-                "z": (0.1, 0.1),
+                "z": (0.05, 0.05),
                 "roll": (-0.0, 0.0),
                 "pitch": (-0.0, 0.0),
                 "yaw": (-math.pi, math.pi),
@@ -188,19 +174,43 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # region Commands
         # 仅保留 x 方向速度指令
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0,1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.5, 1.5)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-math.pi / 4, math.pi / 4)
         self.commands.base_velocity.rel_standing_envs = 0.1
-        self.commands.base_velocity.final_rel_standing_envs = 0.1
+        # self.commands.base_velocity.final_rel_standing_envs = 0.1
         self.commands.base_velocity.initial_zero_command_steps = 50
-        self.commands.base_velocity.final_initial_zero_command_steps = 50
+        # self.commands.base_velocity.final_initial_zero_command_steps = 50
         self.commands.base_velocity.resampling_time_range = (6.0, 8.0)
+        self.commands.base_velocity.bang_bang_envs = 0.05
 
         # endregion
 
         # region Curriculums
-        self.curriculum.command_z_levels = None
+        self.curriculum.terrain_levels = CurriculumTermCfg(
+                func=mdp.terrain_levels_vel
+            )
+        self.curriculum.command_x_levels = CurriculumTermCfg(
+            func=mdp.command_axis_levels_vel,
+            params={
+                "reward_term_name": "track_lin_vel_x_exp",
+                "range_multiplier": (0.1, 1.0),
+                "upper_threshold": 0.8,
+                "lower_threshold": 0.5,
+                "ema_alpha": 0.5,
+            },
+        )
+        self.curriculum.command_y_levels = None
+        self.curriculum.command_z_levels = CurriculumTermCfg(
+            func=mdp.command_axis_levels_vel,
+            params={
+                "reward_term_name": "track_ang_vel_z_exp",
+                "range_multiplier": (0.1, 1.0),
+                "upper_threshold": 0.8,
+                "lower_threshold": 0.5,
+                "ema_alpha": 0.5,
+            },
+        )
         # endregion
 
         # region Rewards
@@ -354,7 +364,7 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
                 "pose_range": {
                     "x": (-0.00, 0.00),
                     "y": (-0.00, 0.00),
-                    "z": (0.05, 0.05),
+                    "z": (0.01, 0.01),
                     "roll": (0.0, 0.0),
                     "pitch": (0.0, 0.0),
                     "yaw": (-0.0, 0.0)
@@ -369,30 +379,17 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
             self.scene.terrain.terrain_generator.border_width = 5.0
             self.scene.terrain.terrain_generator.num_rows = 4
             self.scene.terrain.terrain_generator.num_cols = 4
-        else:
-            play_command_maximum_ranges = [
-                self.commands.base_velocity.ranges.lin_vel_x[1],  # 1.0
-                self.commands.base_velocity.ranges.lin_vel_y[1],  # 0.5
-                self.commands.base_velocity.ranges.ang_vel_z[1],  # pi/4
-            ]
+        
+        # 控制play时的bang-bang比例
+        self.commands.base_velocity.bang_bang_envs = 1.00
 
-            # 1) 覆盖 commands ranges
-            self.commands.base_velocity.ranges.lin_vel_x = (-play_command_maximum_ranges[0], play_command_maximum_ranges[0])
-            self.commands.base_velocity.ranges.lin_vel_y = (-play_command_maximum_ranges[1], play_command_maximum_ranges[1])
-            self.commands.base_velocity.ranges.ang_vel_z = (-play_command_maximum_ranges[2], play_command_maximum_ranges[2])
-
-            # 2) 固定“站立比例 / 初始零命令步数”为最终值（你参考代码里的那两行）
-            self.commands.base_velocity.initial_zero_command_steps = self.commands.base_velocity.final_initial_zero_command_steps
-            self.commands.base_velocity.rel_standing_envs = self.commands.base_velocity.final_rel_standing_envs
-
-            # 3) 避免 play 时 curriculum 还在“缩放 range”
-            #    你这里的 curriculum 是 command_xy_levels / command_z_levels（range_multiplier 从 0.1 -> 1.0）
-            #    play 直接设成 (1.0, 1.0) 让它不再变化
-            if getattr(self, "curriculum", None) is not None:
-                if getattr(self.curriculum, "command_xy_levels", None) is not None:
-                    self.curriculum.command_xy_levels.params["range_multiplier"] = (1.0, 1.0)
-                if getattr(self.curriculum, "command_z_levels", None) is not None:
-                    self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
+        if getattr(self, "curriculum", None) is not None:
+            if getattr(self.curriculum, "command_x_levels", None) is not None:
+                self.curriculum.command_x_levels.params["range_multiplier"] = (1.0, 1.0)
+            if getattr(self.curriculum, "command_y_levels", None) is not None:
+                self.curriculum.command_y_levels.params["range_multiplier"] = (1.0, 1.0)
+            if getattr(self.curriculum, "command_z_levels", None) is not None:
+                self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
 
 
 

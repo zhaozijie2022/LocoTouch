@@ -51,13 +51,13 @@ class MySceneCfg(InteractiveSceneCfg):  # 定义场景配置
 
 @configclass
 class CommandsCfg:
-    base_velocity = mdp.UniformVelocityCommandGaitLoggingCfg(
+    base_velocity = mdp.UniformVelocityCommandMultiSamplingCfg(
         asset_name="robot",
         resampling_time_range=(8.0, 8.0),
         rel_heading_envs=0.0,
         heading_command=False,
         # debug_vis=True,
-        ranges=mdp.UniformVelocityCommandGaitLoggingCfg.Ranges(
+        ranges=mdp.UniformVelocityCommandMultiSamplingCfg.Ranges(
             lin_vel_x=(-1.0, 1.0),
             lin_vel_y=(-0.6, 0.6),
             ang_vel_z=(-math.pi / 2, math.pi / 2)

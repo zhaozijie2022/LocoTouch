@@ -132,8 +132,6 @@ def custom_track_lin_vel_x_exp(
     # 通过调节乘方的大小来调节重力在z轴投影对奖励的影响程度
     if gravity_z_power is not None:
         reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
-    else:
-        reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
     return reward
 
 def custom_track_lin_vel_y_exp(
@@ -151,8 +149,6 @@ def custom_track_lin_vel_y_exp(
     reward = torch.exp(-lin_vel_error / std**2)
     if gravity_z_power is not None:
         reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
-    else:
-        reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
     return reward
 
 def custom_track_ang_vel_z_exp(
@@ -170,8 +166,6 @@ def custom_track_ang_vel_z_exp(
     reward = torch.exp(-ang_vel_error / std**2)
     if gravity_z_power is not None:
         reward *= -(env.scene["robot"].data.projected_gravity_b[:, 2]) ** gravity_z_power
-    else:
-        reward *= -env.scene["robot"].data.projected_gravity_b[:, 2]
     return reward
 
 def custom_base_pitch_angle_l2(

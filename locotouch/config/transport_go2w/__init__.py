@@ -5,7 +5,7 @@ from . import (
     transport_go2w_base_control_env_cfg
 )
 
-# ----------------------------------- Transport Go2W  -----------------------------------
+# region -- Transport Go2W  --
 gym.register(
     id="Isaac-TransportGo2WTeacher-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -35,9 +35,9 @@ python locotouch/scripts/train.py --task Isaac-TransportGo2WTeacher-v1 --num_env
 python locotouch/scripts/play.py --task Isaac-TransportGo2WTeacher-Play-v1 --num_envs=20 --load_run=2025-12-23_21-59-26
 
 """
+# endregion
 
-
-# ----------------------------------- Base Control Go2W  -----------------------------------
+# region -- Base Control Go2W  --
 gym.register(
     id="Isaac-TransportGo2WBaseControl-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -67,3 +67,4 @@ python locotouch/scripts/train.py --task Isaac-TransportGo2WBaseControl-v1 --num
 python locotouch/scripts/play.py --task Isaac-TransportGo2WBaseControl-Play-v1 --num_envs=20 --load_run=2026-02-15_20-47-23
 
 """
+# endregion

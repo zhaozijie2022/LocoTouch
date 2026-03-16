@@ -320,26 +320,10 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         # endregion
 
         # region ------------------------------Curriculums------------------------------
-
-        self.curriculum.command_xy_levels = CurriculumTermCfg(
-            func=mdp.command_xy_levels_vel,
-            params={
-                "reward_term_name": "track_lin_vel_xy_exp",
-                "range_multiplier": (0.1, 1.0),
-            },
-        )
-        self.curriculum.command_z_levels = CurriculumTermCfg(
-            func=mdp.command_z_levels_vel,
-            params={
-                "reward_term_name": "track_ang_vel_z_exp",
-                "range_multiplier": (0.1, 1.0),
-            },
-        )
         if self.scene.terrain.terrain_type == "generator":
             self.curriculum.terrain_levels = CurriculumTermCfg(
                 func=mdp.terrain_levels_vel
             )
-            # TODO: commands的课程开启后不生效, 原因暂时未知
             self.curriculum.command_xy_levels = None
             self.curriculum.command_z_levels = None
         # endregion
