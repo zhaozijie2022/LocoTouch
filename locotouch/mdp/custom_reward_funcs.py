@@ -6,6 +6,9 @@ from isaaclab.managers import SceneEntityCfg, ManagerTermBase, RewardTermCfg
 from isaaclab.sensors import ContactSensor, RayCaster
 from isaaclab.utils.math import quat_from_euler_xyz, quat_apply, quat_apply_inverse, euler_xyz_from_quat, quat_inv, quat_mul
 from typing import TYPE_CHECKING
+
+from locotouch.mdp.observations import ideal_projected_gravity
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
@@ -297,5 +300,30 @@ def custom_base_height_l2(
     return torch.square(asset.data.root_pos_w[:, 2] - adjusted_target_height)
 
 
+def custom_gravity_cos(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """与 ideal_projected_gravity 对齐：同一 base 体轴系下真重力方向与理想等效重力方向的余弦相似度"""
+    asset: Articulation = env.scene[asset_cfg.name]
+    g_b = asset.data.projected_gravity_b
+    g_ideal_b = ideal_projected_gravity(env, asset_cfg)
+    # 在base坐标系下 的 真实重力 和 理想重力 
+    cosine_similarity = torch.sum(g_b * g_ideal_b, dim=-1)
+    return torch.clamp(cosine_similarity, -1.0, 1.0)
+
+
+def custom_gravity_track_exp(    
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    std: float = 0.5,
+) -> torch.Tensor:
+    """仅在 x/y 方向对齐 ideal_projected_gravity """
+    asset: Articulation = env.scene[asset_cfg.name]
+    g_b = asset.data.projected_gravity_b
+    g_ideal_b = ideal_projected_gravity(env, asset_cfg)
+    # 只比较 roll/pitch 对应的横向分量，提高区分度
+    err_xy = torch.sum(torch.square(g_b[:, :2] - g_ideal_b[:, :2]), dim=-1)
+    return torch.exp(-err_xy / (std**2))
 
 # endregion

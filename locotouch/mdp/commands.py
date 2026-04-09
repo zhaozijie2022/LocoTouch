@@ -61,7 +61,7 @@ class UniformVelocityCommandMultiSampling(UniformVelocityCommand):
         for i in [self.cfg.ranges.lin_vel_x[0], 0, self.cfg.ranges.lin_vel_x[1]]:
             for j in [self.cfg.ranges.lin_vel_y[0], 0, self.cfg.ranges.lin_vel_y[1]]:
                 for k in [self.cfg.ranges.ang_vel_z[0], 0, self.cfg.ranges.ang_vel_z[1]]:
-                    if i > 1e-2 or j > 1e-2 or k > 1e-2:
+                    if abs(i) > 1e-2 or abs(j) > 1e-2 or abs(k) > 1e-2:
                         combos.append([i, j, k])  # 避免采样到 0 命令
         self.bang_bang_commands = torch.tensor(combos, device=self.device, dtype=torch.float32)
 

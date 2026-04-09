@@ -368,8 +368,8 @@ class LocomotionBaseEnvCfg(ManagerBasedRLEnvCfg):
                 self.scene.terrain.terrain_generator.curriculum = False
 
 
-def smaller_scene_for_playing(env_cfg: LocomotionBaseEnvCfg) -> None:
-    env_cfg.scene.num_envs = 50
+def smaller_scene_for_playing(env_cfg: LocomotionBaseEnvCfg, num_envs: int = 20) -> None:
+    env_cfg.scene.num_envs = num_envs
     env_cfg.scene.env_spacing = 2.5
     env_cfg.sim.physx.gpu_max_rigid_patch_count = 5 * 2**15
 

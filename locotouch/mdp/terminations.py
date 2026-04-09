@@ -1,7 +1,7 @@
 from __future__ import annotations
 import torch
 from typing import TYPE_CHECKING
-from isaaclab.assets import RigidObject
+from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -55,3 +55,47 @@ def terrain_out_of_bounds(
         return torch.logical_or(x_out_of_bounds, y_out_of_bounds)
     else:
         raise ValueError("Received unsupported terrain type, must be either 'plane' or 'generator'.")
+
+
+def excessive_base_lin_acc(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    threshold: float = 5.0,
+) -> torch.Tensor:
+    """base 加速度过大时终止 episode"""
+    asset: Articulation = env.scene[asset_cfg.name]
+    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    acc_norm = torch.linalg.norm(base_lin_acc_w[:, :2], dim=-1)  # 不计算 z 轴
+    return acc_norm > threshold
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

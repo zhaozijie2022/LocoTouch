@@ -130,7 +130,7 @@ def main():
     timestep = 0
     # simulate environment
     # print_obs = False
-    print_obs = True
+    print_obs = False
     torch.set_printoptions(linewidth=10000, sci_mode=False, precision=5)
 
     mask_obs = False
@@ -195,7 +195,7 @@ def main():
 
             # agent stepping
             actions = policy(obs)
-            print(timestep, "Actions: ", actions[0])
+            # print(timestep, "Actions: ", actions[0])
             # input("Press Enter to continue...")
             # env stepping
             obs, _, dones, extras = env.step(actions)

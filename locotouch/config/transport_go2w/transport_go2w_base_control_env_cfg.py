@@ -86,24 +86,48 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             scale=1.0,
             history_length=1,
         )
-        # 加入背部平台加速度（可选）
-        # from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-        # self.observations.policy.base_lin_acc = ObservationTermCfg(
-        #     func=mdp.base_lin_acc,
-        #     scale=0.25,
-        #     params={
-        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-        #     },
-        #     noise=Unoise(n_min=-0.5, n_max=0.5),
-        # )
-        #
-        # self.observations.critic.base_lin_acc = ObservationTermCfg(
-        #     func=mdp.base_lin_acc,
-        #     scale=0.25,
-        #     params={
-        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-        #     },
-        # )
+        # 加入背部平台加速度
+        from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+        self.observations.policy.base_lin_acc = ObservationTermCfg(
+            func=mdp.base_lin_acc,
+            scale=0.25,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+            },
+            noise=Unoise(n_min=-0.5, n_max=0.5),
+            history_length=6,
+        )
+        
+        self.observations.critic.base_lin_acc = ObservationTermCfg(
+            func=mdp.base_lin_acc,
+            scale=0.25,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+            },
+            history_length=6,
+        )
+
+        # 根据背部平台的加速度计算出来的期望重力投影
+        # TODO
+        self.observations.policy.ideal_projected_gravity = ObservationTermCfg(
+            func=mdp.ideal_projected_gravity,
+            scale=0.25,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+            },
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            history_length=6,
+        )
+        self.observations.critic.ideal_projected_gravity = ObservationTermCfg(
+            func=mdp.ideal_projected_gravity,
+            scale=0.25,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+            },
+            history_length=6,
+        )   
+
+
         # endregion
 
         # region Actions
@@ -170,6 +194,14 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             params={"asset_cfg": SceneEntityCfg("robot"), "distance_buffer": 3.0},
             time_out=True,
         )
+        # self.terminations.excessive_base_lin_acc = TerminationTermCfg(
+        #     func=mdp.excessive_base_lin_acc,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #         "threshold": 10.0,
+        #     },
+        #     time_out=True,
+        # )
         # endregion
 
         # region Commands
@@ -181,7 +213,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # self.commands.base_velocity.final_rel_standing_envs = 0.1
         self.commands.base_velocity.initial_zero_command_steps = 50
         # self.commands.base_velocity.final_initial_zero_command_steps = 50
-        self.commands.base_velocity.resampling_time_range = (6.0, 8.0)
+        self.commands.base_velocity.resampling_time_range = (2.0, 3.0)
         self.commands.base_velocity.bang_bang_envs = 0.05
 
         # endregion
@@ -216,7 +248,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # region Rewards
         import locotouch.mdp.custom_reward_funcs as custom_reward_funcs
 
-        # 增加了reset屏蔽和clip, weight不变
+        # action-rate 增加 clip, weight不变
         self.rewards.action_rate_l2 = RewardTermCfg(
             func=custom_reward_funcs.custom_action_rate_l2_with_clip,
             weight=-0.01,
@@ -225,22 +257,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             }
         )
 
-        # 惩罚 roll & pitch -0.5 -> -15.0
-        self.rewards.flat_orientation_l2.weight = -10.0
-        # 抑制背部平台的上下速度 -1.0 -> -5.0
-        self.rewards.lin_vel_z_l2.weight = -5.0
-        # xy方向角速度就是roll和pitch的角速度惩罚 -0.05 -> -0.25
-        self.rewards.ang_vel_xy_l2.weight = -0.25
-        # 额外惩罚base的俯仰角pitch
-        self.rewards.base_pitch_angle_l2 = RewardTermCfg(
-            func=custom_reward_funcs.custom_base_pitch_angle_l2,
-            weight=-10.0,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-            }
-        )
-
-        # 鼓励速度跟踪
+         # 分离cmd追踪
         self.rewards.track_lin_vel_xy_exp = None
         self.rewards.track_lin_vel_x_exp = RewardTermCfg(
             func=custom_reward_funcs.custom_track_lin_vel_x_exp,
@@ -268,19 +285,7 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             }
         )
 
-        # 惩罚 base xyz加速度
-        self.rewards.base_acc_l2 = RewardTermCfg(
-            func=custom_reward_funcs.custom_base_acc_l2,
-            weight=-0.01,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-                "threshold": (1.0, 10.0),
-                "xyz": (1.0, 1.0, 1.0)
-            }
-        )
-
-        # 移除joint_deviation, 保留stand_still_without_cmd和base_height
-        # self.rewards.joint_deviation_l2 = None
+        # 替换 base_height 的 func, 增加 ray_height 的 clip
         self.rewards.base_height_l2 = RewardTermCfg(
             func=custom_reward_funcs.custom_base_height_l2,
             weight=-10.0,
@@ -292,6 +297,43 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             }
         )
 
+        # 惩罚 base x 方向加速度  weight -0.01 -> -0.05
+        self.rewards.base_acc_l2 = RewardTermCfg(
+            func=custom_reward_funcs.custom_base_acc_l2,
+            weight=-0.05,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+                "threshold": (1.0, 10.0),
+                "xyz": (1.0, 0.0, 0.0)
+            }
+        )
+
+        # # 惩罚 roll & pitch -0.5 -> -15.0
+        # self.rewards.flat_orientation_l2.weight = -10.0
+        # # 额外惩罚base的俯仰角pitch
+        # self.rewards.base_pitch_angle_l2 = RewardTermCfg(
+        #     func=custom_reward_funcs.custom_base_pitch_angle_l2,
+        #     weight=-10.0,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     }
+        # )
+
+        # 将 鼓励 base 平台水平 -> 鼓励 base 平台角度追踪 ideal_projected_gravity
+        self.rewards.flat_orientation_l2 = None
+        self.rewards.base_control = RewardTermCfg(
+            func=custom_reward_funcs.custom_gravity_track_exp,
+            weight=0.5,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+                "std": math.sqrt(0.25),
+            }
+        )
+
+        # 抑制背部平台的上下速度 -1.0 -> -10.0
+        self.rewards.lin_vel_z_l2.weight = -10.0
+        # 惩罚 roll & pitch 角速度 -0.05 -> -0.5
+        self.rewards.ang_vel_xy_l2.weight = -0.1
 
         # endregion
 
@@ -307,18 +349,82 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
         from locotouch.assets.go2w_transport import Go2W_TRANSPORT_PLAY_CFG as Robot_PLAY_CFG
         self.scene.robot = Robot_PLAY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
+        # region 更改测试地形
+        import isaaclab.terrains as terrain_gen
+        from isaaclab.terrains.terrain_generator_cfg import TerrainGeneratorCfg
+        import locotouch.terrains as custom_terrain_gen
+        self.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+            size=(8.0, 8.0),
+            border_width=20.0,
+            num_rows=1,
+            num_cols=1,
+            horizontal_scale=0.05,
+            vertical_scale=0.005,
+            slope_threshold=0.75,
+            use_cache=False,
+            sub_terrains={
+                "flat": terrain_gen.MeshPlaneTerrainCfg(
+                    proportion=1.0
+                ),
+                # "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
+                #     proportion=0.2, noise_range=(0.00, 0.05), noise_step=0.005,
+                #     frequency=0.75, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
+                # ),
+                # "speed_bump": custom_terrain_gen.HfSpeedBumpTerrainCfg(
+                #     proportion=0.2, num_bumps=8, bump_height_range=(0.07, 0.07),
+                #     random_flat_ratio=(0.35, 0.35), random_bump_width=(0.40, 0.40),
+                #     num_gaps=2, random_gap_length=(0.5, 1.0), gap_margin=0.5,
+                #     platform_width=2.0, border_width=0.25,
+                # ),
+                # "boxes": terrain_gen.MeshRandomGridTerrainCfg(
+                #     proportion=0.2, grid_width=0.45, 
+                #     grid_height_range=(0.00, 0.05), platform_width=2.0
+                # ),
+            },
+            seed=1,
+        )
+
+        # endregion
+
+
+
+        self.events.reset_base.params = {
+            "pose_range": {
+                "x": (-0.0, 0.0),
+                "y": (-0.0, 0.0),
+                "z": (0.01, 0.01),
+                "roll": (-0.0, 0.0),
+                "pitch": (-0.0, 0.0),
+                "yaw": (-math.pi, math.pi),
+            },
+            "velocity_range": {
+                "x": (-0.0, 0.0),
+                "y": (-0.0, 0.0),
+                "z": (-0.0, 0.0),
+                "roll": (-0.0, 0.0),
+                "pitch": (-0.0, 0.0),
+                "yaw": (-0.0, 0.0),
+            }
+        }
+
+        self.events.randomize_apply_external_force_torque = None
+        self.events.push_robot = None
+
+
         from locotouch.config.base.locomotion_base_env_cfg import smaller_scene_for_playing
-        smaller_scene_for_playing(self)
+        smaller_scene_for_playing(self, num_envs=20)
 
 
+
+        # region 初始化 Object
         env_num = self.scene.num_envs
-        radius_range = (0.05, 0.05)  # (0.025, 0.075)
+        radius_range = (0.032, 0.032)  # (0.025, 0.075)
 
         # height_range = (0.15, 0.25)
         # size_range = np.array([radius_range, height_range])
         # size_samples = np.random.uniform(size_range[:, 0], size_range[:, 1], (env_num, 2))
 
-        hr_ratio_range = (4.0, 4.0)  # (3.0, 6.0)
+        hr_ratio_range = (5.0, 5.0)  # (3.0, 6.0)
         radii = np.random.uniform(radius_range[0], radius_range[1], size=(env_num, 1))
         hr_ratios = np.random.uniform(hr_ratio_range[0], hr_ratio_range[1], size=(env_num, 1))
         heights = radii * hr_ratios
@@ -347,7 +453,7 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
                     disable_gravity=False,
                 ),
                 activate_contact_sensors=True,
-                mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=0.5),
                 collision_props=sim_utils.CollisionPropertiesCfg(
                     collision_enabled=True,
                     contact_offset=0.005,
@@ -375,13 +481,18 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
             },
         )
 
-        if self.scene.terrain.terrain_type == "generator":
-            self.scene.terrain.terrain_generator.border_width = 5.0
-            self.scene.terrain.terrain_generator.num_rows = 4
-            self.scene.terrain.terrain_generator.num_cols = 4
+        # endregion
         
-        # 控制play时的bang-bang比例
-        self.commands.base_velocity.bang_bang_envs = 1.00
+        # region 修改 Command
+        self.commands.base_velocity.bang_bang_envs = 0.00
+
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.25, 1.25)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.rel_standing_envs = 0.0
+        # self.commands.base_velocity.final_rel_standing_envs = 0.1
+        self.commands.base_velocity.initial_zero_command_steps = 100
+        self.commands.base_velocity.resampling_time_range = (1.5, 2.0)
 
         if getattr(self, "curriculum", None) is not None:
             if getattr(self.curriculum, "command_x_levels", None) is not None:
@@ -390,7 +501,7 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
                 self.curriculum.command_y_levels.params["range_multiplier"] = (1.0, 1.0)
             if getattr(self.curriculum, "command_z_levels", None) is not None:
                 self.curriculum.command_z_levels.params["range_multiplier"] = (1.0, 1.0)
-
+        # endregion
 
 
 
