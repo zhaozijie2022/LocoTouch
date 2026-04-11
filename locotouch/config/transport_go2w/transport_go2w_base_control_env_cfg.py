@@ -88,15 +88,15 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         )
         # 加入背部平台加速度
         from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-        self.observations.policy.base_lin_acc = ObservationTermCfg(
-            func=mdp.base_lin_acc,
-            scale=0.25,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-            },
-            noise=Unoise(n_min=-0.5, n_max=0.5),
-            history_length=6,
-        )
+        # self.observations.policy.base_lin_acc = ObservationTermCfg(
+        #     func=mdp.base_lin_acc,
+        #     scale=0.25,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     },
+        #     noise=Unoise(n_min=-0.5, n_max=0.5),
+        #     history_length=6,
+        # )
         
         self.observations.critic.base_lin_acc = ObservationTermCfg(
             func=mdp.base_lin_acc,
@@ -109,18 +109,18 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # 根据背部平台的加速度计算出来的期望重力投影
         # TODO
-        self.observations.policy.ideal_projected_gravity = ObservationTermCfg(
-            func=mdp.ideal_projected_gravity,
-            scale=0.25,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-            },
-            noise=Unoise(n_min=-0.1, n_max=0.1),
-            history_length=6,
-        )
+        # self.observations.policy.ideal_projected_gravity = ObservationTermCfg(
+        #     func=mdp.ideal_projected_gravity,
+        #     scale=0.25,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     },
+        #     noise=Unoise(n_min=-0.1, n_max=0.1),
+        #     history_length=6,
+        # )
         self.observations.critic.ideal_projected_gravity = ObservationTermCfg(
             func=mdp.ideal_projected_gravity,
-            scale=0.25,
+            scale=1.0,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
             },
@@ -206,43 +206,64 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # region Commands
         # 仅保留 x 方向速度指令
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.5, 1.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
+        # self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-math.pi / 4, math.pi / 4)
         self.commands.base_velocity.rel_standing_envs = 0.1
         # self.commands.base_velocity.final_rel_standing_envs = 0.1
         self.commands.base_velocity.initial_zero_command_steps = 50
         # self.commands.base_velocity.final_initial_zero_command_steps = 50
-        self.commands.base_velocity.resampling_time_range = (2.0, 3.0)
+        self.commands.base_velocity.resampling_time_range = (6.0, 8.0)
         self.commands.base_velocity.bang_bang_envs = 0.05
 
         # endregion
 
         # region Curriculums
         self.curriculum.terrain_levels = CurriculumTermCfg(
-                func=mdp.terrain_levels_vel
+            func=mdp.terrain_levels_vel
+        )
+        if max(self.commands.base_velocity.ranges.lin_vel_x) > 0.0:
+            self.curriculum.command_x_levels = CurriculumTermCfg(
+                func=mdp.command_axis_levels_vel,
+                params={
+                    "reward_term_name": "track_lin_vel_x_exp",
+                    "range_multiplier": (0.1, 1.0),
+                    "upper_threshold": 0.8,
+                    "lower_threshold": 0.5,
+                    "ema_alpha": 0.5,
+                },
             )
-        self.curriculum.command_x_levels = CurriculumTermCfg(
-            func=mdp.command_axis_levels_vel,
-            params={
-                "reward_term_name": "track_lin_vel_x_exp",
-                "range_multiplier": (0.1, 1.0),
-                "upper_threshold": 0.8,
-                "lower_threshold": 0.5,
-                "ema_alpha": 0.5,
-            },
-        )
-        self.curriculum.command_y_levels = None
-        self.curriculum.command_z_levels = CurriculumTermCfg(
-            func=mdp.command_axis_levels_vel,
-            params={
-                "reward_term_name": "track_ang_vel_z_exp",
-                "range_multiplier": (0.1, 1.0),
-                "upper_threshold": 0.8,
-                "lower_threshold": 0.5,
-                "ema_alpha": 0.5,
-            },
-        )
+        else:
+            self.curriculum.command_x_levels = None
+
+        if max(self.commands.base_velocity.ranges.lin_vel_y) > 0.0:
+            self.curriculum.command_y_levels = CurriculumTermCfg(
+                func=mdp.command_axis_levels_vel,
+                params={
+                    "reward_term_name": "track_lin_vel_y_exp",
+                    "range_multiplier": (0.1, 1.0),
+                    "upper_threshold": 0.8,
+                    "lower_threshold": 0.5,
+                    "ema_alpha": 0.5,
+                },
+            )
+        else:   
+            self.curriculum.command_y_levels = None
+
+        if max(self.commands.base_velocity.ranges.ang_vel_z) > 0.0:
+            self.curriculum.command_z_levels = CurriculumTermCfg(
+                func=mdp.command_axis_levels_vel,
+                params={
+                    "reward_term_name": "track_ang_vel_z_exp",
+                    "range_multiplier": (0.1, 1.0),
+                    "upper_threshold": 0.8,
+                    "lower_threshold": 0.5,
+                    "ema_alpha": 0.5,
+                },
+            )
+        else:
+            self.curriculum.command_z_levels = None
         # endregion
 
         # region Rewards
@@ -267,7 +288,6 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 "std": math.sqrt(0.25),
             }
         )
-        # cmd没有y方向速度, 这里的0.75是鼓励y方向不要漂移
         self.rewards.track_lin_vel_y_exp = RewardTermCfg(
             func=custom_reward_funcs.custom_track_lin_vel_y_exp,
             weight=0.75,
@@ -297,14 +317,14 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
             }
         )
 
-        # 惩罚 base x 方向加速度  weight -0.01 -> -0.05
+        # 惩罚 base x, y 方向加速度  weight -0.01 -> -0.05
         self.rewards.base_acc_l2 = RewardTermCfg(
             func=custom_reward_funcs.custom_base_acc_l2,
-            weight=-0.05,
+            weight=-0.1,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "threshold": (1.0, 10.0),
-                "xyz": (1.0, 0.0, 0.0)
+                "xyz": (1.0, 1.0, 0.0)
             }
         )
 
@@ -321,19 +341,43 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # 将 鼓励 base 平台水平 -> 鼓励 base 平台角度追踪 ideal_projected_gravity
         self.rewards.flat_orientation_l2 = None
-        self.rewards.base_control = RewardTermCfg(
+        self.rewards.track_gravity_exp = RewardTermCfg(
             func=custom_reward_funcs.custom_gravity_track_exp,
-            weight=0.5,
+            weight=0.2,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
                 "std": math.sqrt(0.25),
             }
         )
 
+        # self.rewards.base_angle_l2 = RewardTermCfg(
+        #     func=custom_reward_funcs.custom_base_angle_l2,
+        #     weight=-10,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #     }
+        # )
+
         # 抑制背部平台的上下速度 -1.0 -> -10.0
         self.rewards.lin_vel_z_l2.weight = -10.0
         # 惩罚 roll & pitch 角速度 -0.05 -> -0.5
-        self.rewards.ang_vel_xy_l2.weight = -0.1
+        self.rewards.ang_vel_xy_l2.weight = -0.05
+
+        # # 防止关节抖动
+        self.rewards.joint_torques_l2.weight = -3.0e-4
+        self.rewards.joint_acc_l2.weight = -5e-7
+        self.rewards.joint_wheel_acc_l2.weight = -5e-9
+
+        # 增加姿态惩罚, 加速度越小, 关节位置偏离默认位置的惩罚越大
+        # self.rewards.joint_deviation_acc_gated_l2 = RewardTermCfg(
+        #     func=custom_reward_funcs.custom_joint_deviation_acc_gated_l2,
+        #     weight=-0.15,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", joint_names=self.leg_joint_names, body_names=[self.base_link_name]),
+        #     }
+        # )
+
+
 
         # endregion
 

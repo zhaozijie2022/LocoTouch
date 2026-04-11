@@ -44,7 +44,7 @@ class LeggedGymRewardsCfg:
     )
     lin_vel_z_l2 = RewardTermCfg(
         func=reward_funcs.lin_vel_z_l2,
-        weight=-1.0
+        weight=-2.0
     )
     ang_vel_xy_l2 = RewardTermCfg(
         func=reward_funcs.ang_vel_xy_l2,
@@ -54,11 +54,28 @@ class LeggedGymRewardsCfg:
         func=reward_funcs.flat_orientation_l2,
         weight=-0.5
     )
+
+
     joint_torques_l2 = RewardTermCfg(
         func=reward_funcs.joint_torques_l2,
-        weight=-3e-4,  # 0.0003
+        weight=-2.0e-4,  # 0.0003
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES + WHEEL_JOINT_NAMES)
+        }
+    )
+    joint_acc_l2 = RewardTermCfg(
+        func=reward_funcs.joint_acc_l2,
+        weight=-2.5e-7,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=self.leg_joint_names)
+        }
+    )
+    
+    joint_wheel_acc_l2 = RewardTermCfg(
+        func=reward_funcs.joint_acc_l2,
+        weight=-2.5e-9,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=self.wheel_joint_names)
         }
     )
 
@@ -88,7 +105,7 @@ class LeggedGymRewardsCfg:
 
     stand_still_without_cmd = RewardTermCfg(
         func=reward_funcs.stand_still_without_cmd,
-        weight=-0.5,
+        weight=-0.25,
         params={
             "command_name": "base_velocity",
             "command_threshold": 0.1,
@@ -98,7 +115,7 @@ class LeggedGymRewardsCfg:
 
     hip_deviation_l2 = RewardTermCfg(
         func=reward_funcs.hip_deviation_l2,
-        weight=-0.5,
+        weight=-0.3,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=HIP_JOINT_NAMES),
         },

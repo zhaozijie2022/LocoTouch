@@ -63,8 +63,10 @@ Go2W 轮腿机器人运载任务
 训练命令:
 python locotouch/scripts/train.py --task Isaac-TransportGo2WBaseControl-v1 --num_envs=4096 --headless
 
+python locotouch/scripts/train.py --task Isaac-TransportGo2WBaseControl-v1 --num_envs=4096 --headless --resume --load_run=2026-04-09_23-26-21 --checkpoint=model_5000.pt
+
 测试命令:
-python locotouch/scripts/play.py --task Isaac-TransportGo2WBaseControl-Play-v1 --num_envs=20 --load_run=2026-04-07_01-36-00
+python locotouch/scripts/play.py --task Isaac-TransportGo2WBaseControl-Play-v1 --num_envs=20 --load_run=2026-04-09_23-26-21
 
 """
 # endregion

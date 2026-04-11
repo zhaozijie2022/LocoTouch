@@ -322,8 +322,36 @@ def custom_gravity_track_exp(
     asset: Articulation = env.scene[asset_cfg.name]
     g_b = asset.data.projected_gravity_b
     g_ideal_b = ideal_projected_gravity(env, asset_cfg)
-    # 只比较 roll/pitch 对应的横向分量，提高区分度
+    # 只比较 roll/pitch 对应的横向分量
     err_xy = torch.sum(torch.square(g_b[:, :2] - g_ideal_b[:, :2]), dim=-1)
     return torch.exp(-err_xy / (std**2))
+
+
+def custom_base_angle_l2(    
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """仅在 x/y 方向对齐 ideal_projected_gravity """
+    asset: Articulation = env.scene[asset_cfg.name]
+    g_b = asset.data.projected_gravity_b
+    g_ideal_b = ideal_projected_gravity(env, asset_cfg)
+    # 只比较 roll/pitch 对应的横向分量
+    return torch.sum(torch.square(g_b[:, :2] - g_ideal_b[:, :2]), dim=1)
+
+
+def custom_joint_deviation_acc_gated_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """加速度越小, 关节位置偏离默认位置的惩罚越大"""
+    asset: Articulation = env.scene[asset_cfg.name]
+    joint_ids = asset_cfg.joint_ids
+    q = asset.data.joint_pos[:, joint_ids]
+    q0 = asset.data.default_joint_pos[:, joint_ids]
+    pen = torch.sum(torch.square(q - q0), dim=1)
+    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze(dim=1)
+    acc_norm = torch.linalg.norm(base_lin_acc_w[:, :2], dim=-1)
+    return pen * torch.exp(-acc_norm)
+
 
 # endregion

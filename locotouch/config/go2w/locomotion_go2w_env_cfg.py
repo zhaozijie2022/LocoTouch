@@ -332,27 +332,6 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
         # self.rewards: RobotLabRewardsCfg = RobotLabRewardsCfg()
         self.rewards: LeggedGymRewardsCfg = LeggedGymRewardsCfg()
 
-
-        import isaaclab.envs.mdp.rewards as reward_funcs
-        self.rewards.lin_vel_z_l2.weight = -2.0
-        self.rewards.joint_torques_l2.weight = -2.0e-4
-        self.rewards.joint_acc_l2 = RewardTermCfg(
-            func=reward_funcs.joint_acc_l2,
-            weight=-2.5e-7,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=self.leg_joint_names)
-            }
-        )
-        self.rewards.joint_wheel_acc_l2 = RewardTermCfg(
-            func=reward_funcs.joint_acc_l2,
-            weight=-2.5e-9,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=self.wheel_joint_names)
-            }
-        )
-        self.rewards.joint_deviation_l2.weight = -0.1
-        self.rewards.hip_deviation_l2.weight = -0.3
-        self.rewards.stand_still_without_cmd.weight = -0.25
         self.disable_zero_weight_rewards()
         # endregion
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 import torch
 import torch.nn.functional as F
 from typing import TYPE_CHECKING
@@ -36,8 +37,9 @@ def base_lin_acc(
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
-    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
-    return math_utils.quat_apply_inverse(body_quat, base_lin_acc_w)
+    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    acc_b = math_utils.quat_apply_inverse(body_quat, acc_w)
+    return acc_b
 
 
 def base_lin_acc_w(
@@ -46,10 +48,8 @@ def base_lin_acc_w(
 ) -> torch.Tensor:
     """返回世界坐标系下的加速度"""
     asset: Articulation = env.scene[asset_cfg.name]
-    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
-    return base_lin_acc_w
-
-
+    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    return acc_w
 
 
 def ideal_projected_gravity(
@@ -59,15 +59,15 @@ def ideal_projected_gravity(
     """给定acc (世界坐标系), 计算理想的重力投影方向"""
     asset: Articulation = env.scene[asset_cfg.name]
     body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
-    base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
+    acc_w = base_lin_acc_w(env, asset_cfg)
     grav = SimulationManager.get_physics_sim_view().get_gravity()
     g_w = torch.tensor(
         (grav[0], grav[1], grav[2]),
-        device=base_lin_acc_w.device,
-        dtype=base_lin_acc_w.dtype,
+        device=acc_w.device,
+        dtype=acc_w.dtype,
     )
     g_mag = torch.linalg.norm(g_w)
-    ax, ay = base_lin_acc_w[:, 0], base_lin_acc_w[:, 1]
+    ax, ay = acc_w[:, 0], acc_w[:, 1]
     norm = torch.sqrt(ax**2 + ay**2 + g_mag**2).clamp(min=1e-9)
     g_ideal_w = torch.stack([-ax / norm, -ay / norm, -g_mag / norm], dim=-1)
     return math_utils.quat_apply_inverse(body_quat, g_ideal_w)
@@ -478,5 +478,3 @@ class ProcessedTactileSignals(TactileSignals):
             self.processed_normalized_forces,
             self.processed_min_max_normalized_signals,
             self.processed_discretized_signals], dim=1).flatten(start_dim=1)
-
-
