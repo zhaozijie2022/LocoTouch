@@ -67,7 +67,7 @@ class LeggedGymRewardsCfg:
         func=reward_funcs.joint_acc_l2,
         weight=-2.5e-7,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=self.leg_joint_names)
+            "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES)
         }
     )
     
@@ -75,7 +75,7 @@ class LeggedGymRewardsCfg:
         func=reward_funcs.joint_acc_l2,
         weight=-2.5e-9,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=self.wheel_joint_names)
+            "asset_cfg": SceneEntityCfg("robot", joint_names=WHEEL_JOINT_NAMES)
         }
     )
 

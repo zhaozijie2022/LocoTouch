@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 # ----------------- Go2W -----------------
 from isaaclab.assets import Articulation
+from .custom_buffer import CustomDataBuffer
 
 def joint_pos_rel_without_wheel(
     env: ManagerBasedEnv,
@@ -29,37 +30,98 @@ def joint_pos_rel_without_wheel(
 
 
 import isaaclab.utils.math as math_utils
-def base_lin_acc(
+def custom_base_lin_acc(
     env: ManagerBasedEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    frame: str = "world", # or "base"
+    use_lpf: bool = False,
+    cut_off_frequency: float = 5.0,
+    control_frequency: float = 50.0,
 ) -> torch.Tensor:
-    """The linear acceleration of the base link of the asset."""
-    # extract the used quantities (to enable type-hinting)
-    asset: Articulation = env.scene[asset_cfg.name]
-    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
-    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
-    acc_b = math_utils.quat_apply_inverse(body_quat, acc_w)
-    return acc_b
+    """ 返回指定坐标系下的加速度, 加入平滑功能
+    
+    """
+    assert frame in ["world", "base"], "Only 'world' and 'base' frames are supported"
 
-
-def base_lin_acc_w(
-    env: ManagerBasedEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-    """返回世界坐标系下的加速度"""
     asset: Articulation = env.scene[asset_cfg.name]
-    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
-    return acc_w
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze(1)
+    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze(1)
+
+    if use_lpf:
+        if not hasattr(env, "custom_data_buffer"):
+            setattr(env, "custom_data_buffer", CustomDataBuffer())
+
+        buffer = env.custom_data_buffer
+
+        # lazy init: 首次调用或形状变化时初始化
+        if (
+            (not hasattr(buffer, "prev_base_lin_acc_w"))
+            or (not hasattr(buffer, "prev_base_lin_acc_w_lpf"))
+            or buffer.prev_base_lin_acc_w.shape != acc_w.shape
+        ):
+            buffer.prev_base_lin_acc_w = acc_w.clone()
+            buffer.prev_base_lin_acc_w_lpf = acc_w.clone()
+            buffer.base_lin_acc_lpf_cached = acc_w.clone()
+            buffer.base_lin_acc_lpf_alpha = 1.0 - math.exp(-2.0 * math.pi * cut_off_frequency / control_frequency)
+
+            # 因为此函数即被policy调用也被critic调用, 因此一步被调用两次会滤波两次
+            # 记录上次滤波时的环境步数
+            buffer.base_lin_acc_lpf_last_step = -1
+
+        _alpha = buffer.base_lin_acc_lpf_alpha
+
+        current_step = int(getattr(env, "common_step_counter", -1))
+        
+        if getattr(buffer, "base_lin_acc_lpf_last_step", -1) == current_step:
+            # 说明是同一步的多次调用
+            acc_w = buffer.base_lin_acc_lpf_cached
+        else:
+            # just_reset: 新 episode 第一帧（避免上一 episode 历史污染）
+            just_reset_mask = None
+            if hasattr(env, "episode_length_buf") and env.episode_length_buf is not None:
+                just_reset_mask = (env.episode_length_buf == 0).unsqueeze(-1)
+
+            # will_reset: 本 step 结束后将 reset（用于写入下一步历史）
+            will_reset_mask = None
+            if hasattr(env, "reset_buf") and env.reset_buf is not None:
+                will_reset_mask = env.reset_buf.unsqueeze(-1)
+
+            acc_w_lpf = _alpha * acc_w + (1.0 - _alpha) * buffer.prev_base_lin_acc_w_lpf
+            if just_reset_mask is not None:
+                acc_w_lpf = torch.where(just_reset_mask, acc_w, acc_w_lpf)
+
+            # 更新历史
+            if will_reset_mask is not None:
+                buffer.prev_base_lin_acc_w = torch.where(will_reset_mask, torch.zeros_like(acc_w), acc_w)
+                buffer.prev_base_lin_acc_w_lpf = torch.where(will_reset_mask, torch.zeros_like(acc_w_lpf), acc_w_lpf)
+            else:
+                buffer.prev_base_lin_acc_w = acc_w.clone()
+                buffer.prev_base_lin_acc_w_lpf = acc_w_lpf.clone()
+
+            buffer.base_lin_acc_lpf_cached = acc_w_lpf
+            buffer.base_lin_acc_lpf_last_step = current_step
+            acc_w = acc_w_lpf
+
+    if frame == "world":
+        return acc_w
+    elif frame == "base":
+        acc_b = math_utils.quat_apply_inverse(body_quat, acc_w)
+        return acc_b
 
 
 def ideal_projected_gravity(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    zero_threshold: float = 0.0,
+    use_acc_lpf: bool = False,
 ) -> torch.Tensor:
     """给定acc (世界坐标系), 计算理想的重力投影方向"""
     asset: Articulation = env.scene[asset_cfg.name]
-    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
-    acc_w = base_lin_acc_w(env, asset_cfg)
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze(1)
+    if use_acc_lpf:
+        acc_w = custom_base_lin_acc(env, asset_cfg=asset_cfg, frame="world", use_lpf=True)
+    else:
+        acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze(1)
     grav = SimulationManager.get_physics_sim_view().get_gravity()
     g_w = torch.tensor(
         (grav[0], grav[1], grav[2]),
@@ -68,6 +130,14 @@ def ideal_projected_gravity(
     )
     g_mag = torch.linalg.norm(g_w)
     ax, ay = acc_w[:, 0], acc_w[:, 1]
+
+    # TODO 夸大加速度的效果, 以获得更大的超调, 更明显的展示效果
+    ax *= 1.5
+    ay *= 1.5
+
+    ax = torch.where(torch.abs(ax) < zero_threshold, torch.zeros_like(ax), ax)
+    ay = torch.where(torch.abs(ay) < zero_threshold, torch.zeros_like(ay), ay)
+
     norm = torch.sqrt(ax**2 + ay**2 + g_mag**2).clamp(min=1e-9)
     g_ideal_w = torch.stack([-ax / norm, -ay / norm, -g_mag / norm], dim=-1)
     return math_utils.quat_apply_inverse(body_quat, g_ideal_w)

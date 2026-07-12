@@ -300,14 +300,16 @@ def custom_base_height_l2(
     return torch.square(asset.data.root_pos_w[:, 2] - adjusted_target_height)
 
 
-def custom_gravity_cos(
+def custom_gravity_track_cos(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    zero_threshold: float = 0.0,
+    use_acc_lpf: bool = False,
 ) -> torch.Tensor:
     """与 ideal_projected_gravity 对齐：同一 base 体轴系下真重力方向与理想等效重力方向的余弦相似度"""
     asset: Articulation = env.scene[asset_cfg.name]
     g_b = asset.data.projected_gravity_b
-    g_ideal_b = ideal_projected_gravity(env, asset_cfg)
+    g_ideal_b = ideal_projected_gravity(env, asset_cfg, zero_threshold, use_acc_lpf)
     # 在base坐标系下 的 真实重力 和 理想重力 
     cosine_similarity = torch.sum(g_b * g_ideal_b, dim=-1)
     return torch.clamp(cosine_similarity, -1.0, 1.0)
@@ -317,11 +319,13 @@ def custom_gravity_track_exp(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     std: float = 0.5,
+    zero_threshold: float = 0.0,
+    use_acc_lpf: bool = False,
 ) -> torch.Tensor:
     """仅在 x/y 方向对齐 ideal_projected_gravity """
     asset: Articulation = env.scene[asset_cfg.name]
     g_b = asset.data.projected_gravity_b
-    g_ideal_b = ideal_projected_gravity(env, asset_cfg)
+    g_ideal_b = ideal_projected_gravity(env, asset_cfg, zero_threshold, use_acc_lpf)
     # 只比较 roll/pitch 对应的横向分量
     err_xy = torch.sum(torch.square(g_b[:, :2] - g_ideal_b[:, :2]), dim=-1)
     return torch.exp(-err_xy / (std**2))
@@ -330,11 +334,13 @@ def custom_gravity_track_exp(
 def custom_base_angle_l2(    
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    zero_threshold: float = 0.0,
+    use_acc_lpf: bool = False,
 ) -> torch.Tensor:
     """仅在 x/y 方向对齐 ideal_projected_gravity """
     asset: Articulation = env.scene[asset_cfg.name]
     g_b = asset.data.projected_gravity_b
-    g_ideal_b = ideal_projected_gravity(env, asset_cfg)
+    g_ideal_b = ideal_projected_gravity(env, asset_cfg, zero_threshold, use_acc_lpf)
     # 只比较 roll/pitch 对应的横向分量
     return torch.sum(torch.square(g_b[:, :2] - g_ideal_b[:, :2]), dim=1)
 

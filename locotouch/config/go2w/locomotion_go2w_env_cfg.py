@@ -254,7 +254,7 @@ class LocomotionGo2WEnvCfg(LocomotionBaseEnvCfg):
             # func=mdp.reset_joints_by_offset,
             mode="reset",
             params={
-                "position_range": (1.0, 1.0),
+                "position_range": (0.75, 1.25),
                 "velocity_range": (0.0, 0.0),
             },
         )

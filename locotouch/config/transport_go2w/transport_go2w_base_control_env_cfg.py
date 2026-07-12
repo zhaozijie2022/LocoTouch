@@ -48,9 +48,9 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                 "flat": terrain_gen.MeshPlaneTerrainCfg(
                     proportion=0.2
                 ),
-                "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-                    proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
-                ),
+                # "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+                #     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005, border_width=0.25
+                # ),
                 "perlin_rough": custom_terrain_gen.HfPerlinNoiseTerrainCfg(
                     proportion=0.2, noise_range=(0.00, 0.10), noise_step=0.005,
                     frequency=0.75, octaves=2, lacunarity=2.0, persistence=0.5, border_width=0.25
@@ -64,9 +64,9 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
                     num_gaps=2, random_gap_length=(0.5, 1.0), gap_margin=0.5,
                     platform_width=2.0, border_width=0.25,
                 ),
-                "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-                    proportion=0.1, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
-                ),
+                # "boxes": terrain_gen.MeshRandomGridTerrainCfg(
+                #     proportion=0.1, grid_width=0.45, grid_height_range=(0.00, 0.10), platform_width=2.0
+                # ),
             },
             seed=1,
         )
@@ -89,40 +89,48 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         # 加入背部平台加速度
         from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
         # self.observations.policy.base_lin_acc = ObservationTermCfg(
-        #     func=mdp.base_lin_acc,
+        #     func=mdp.custom_base_lin_acc,
         #     scale=0.25,
         #     params={
         #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #         "frame": "world",
+        #         "use_lpf": True,
         #     },
         #     noise=Unoise(n_min=-0.5, n_max=0.5),
         #     history_length=6,
         # )
         
         self.observations.critic.base_lin_acc = ObservationTermCfg(
-            func=mdp.base_lin_acc,
+            func=mdp.custom_base_lin_acc,
             scale=0.25,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+                "frame": "world",
+                "use_lpf": True,
             },
             history_length=6,
         )
 
         # 根据背部平台的加速度计算出来的期望重力投影
-        # TODO
         # self.observations.policy.ideal_projected_gravity = ObservationTermCfg(
         #     func=mdp.ideal_projected_gravity,
-        #     scale=0.25,
+        #     scale=1.0,
         #     params={
         #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #         "zero_threshold": 0.0,
+        #         "use_acc_lpf": True,
         #     },
         #     noise=Unoise(n_min=-0.1, n_max=0.1),
         #     history_length=6,
         # )
+        
         self.observations.critic.ideal_projected_gravity = ObservationTermCfg(
             func=mdp.ideal_projected_gravity,
             scale=1.0,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+                "zero_threshold": 0.0,
+                "use_acc_lpf": True,
             },
             history_length=6,
         )   
@@ -161,6 +169,9 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # region Events
         # startup:
+        # 针对橡胶材质提高摩擦系数
+        self.events.randomize_foot_physics_material.params["static_friction_range"] = (0.8, 1.5)
+        self.events.randomize_foot_physics_material.params["dynamic_friction_range"] = (0.6, 1.2)
 
         # reset:
         # 机器人初始化位置（相对于地形原点）
@@ -306,16 +317,17 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         )
 
         # 替换 base_height 的 func, 增加 ray_height 的 clip
-        self.rewards.base_height_l2 = RewardTermCfg(
-            func=custom_reward_funcs.custom_base_height_l2,
-            weight=-10.0,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-                "sensor_cfg": SceneEntityCfg("height_scanner_base"),
-                "target_height": 0.40,
-                "terrain_height_threshold": (-0.4, 0.4),
-            }
-        )
+        self.rewards.base_height_l2 = None
+        # self.rewards.base_height_l2 = RewardTermCfg(
+        #     func=custom_reward_funcs.custom_base_height_l2,
+        #     weight=-10.0,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
+        #         "sensor_cfg": SceneEntityCfg("height_scanner_base"),
+        #         "target_height": 0.40,
+        #         "terrain_height_threshold": (-0.4, 0.4),
+        #     }
+        # )
 
         # 惩罚 base x, y 方向加速度  weight -0.01 -> -0.05
         self.rewards.base_acc_l2 = RewardTermCfg(
@@ -343,10 +355,12 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
         self.rewards.flat_orientation_l2 = None
         self.rewards.track_gravity_exp = RewardTermCfg(
             func=custom_reward_funcs.custom_gravity_track_exp,
-            weight=0.2,
+            weight=0.5,
             params={
                 "asset_cfg": SceneEntityCfg("robot", body_names=[self.base_link_name]),
-                "std": math.sqrt(0.25),
+                "std": math.sqrt(0.25),  # 减少std以增加区分度
+                "zero_threshold": 0.0,
+                "use_acc_lpf": True,
             }
         )
 
@@ -360,22 +374,13 @@ class TransportGo2WBaseControlEnvCfg(LocomotionGo2WEnvCfg):
 
         # 抑制背部平台的上下速度 -1.0 -> -10.0
         self.rewards.lin_vel_z_l2.weight = -10.0
-        # 惩罚 roll & pitch 角速度 -0.05 -> -0.5
+        # 惩罚 roll & pitch 角速度 减少惩罚, 之前是-0.25
         self.rewards.ang_vel_xy_l2.weight = -0.05
 
         # # 防止关节抖动
         self.rewards.joint_torques_l2.weight = -3.0e-4
         self.rewards.joint_acc_l2.weight = -5e-7
         self.rewards.joint_wheel_acc_l2.weight = -5e-9
-
-        # 增加姿态惩罚, 加速度越小, 关节位置偏离默认位置的惩罚越大
-        # self.rewards.joint_deviation_acc_gated_l2 = RewardTermCfg(
-        #     func=custom_reward_funcs.custom_joint_deviation_acc_gated_l2,
-        #     weight=-0.15,
-        #     params={
-        #         "asset_cfg": SceneEntityCfg("robot", joint_names=self.leg_joint_names, body_names=[self.base_link_name]),
-        #     }
-        # )
 
 
 
@@ -528,15 +533,15 @@ class TransportGo2WBaseControlEnvCfg_PLAY(TransportGo2WBaseControlEnvCfg):
         # endregion
         
         # region 修改 Command
-        self.commands.base_velocity.bang_bang_envs = 0.00
+        self.commands.base_velocity.bang_bang_envs = 1.00
 
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.25, 1.25)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.rel_standing_envs = 0.0
         # self.commands.base_velocity.final_rel_standing_envs = 0.1
         self.commands.base_velocity.initial_zero_command_steps = 100
-        self.commands.base_velocity.resampling_time_range = (1.5, 2.0)
+        self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
         if getattr(self, "curriculum", None) is not None:
             if getattr(self.curriculum, "command_x_levels", None) is not None:
