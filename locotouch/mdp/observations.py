@@ -27,6 +27,9 @@ def joint_pos_rel_without_wheel(
 
 
 import isaaclab.utils.math as math_utils
+from .databuffer import StepwiseLPF
+
+
 def base_lin_acc(
     env: ManagerBasedEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
@@ -37,6 +40,63 @@ def base_lin_acc(
     body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze()
     base_lin_acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze()
     return math_utils.quat_apply_inverse(body_quat, base_lin_acc_w)
+
+
+def custom_base_lin_acc(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    frame: str = "world",  # or "base"
+) -> torch.Tensor:
+    """返回指定坐标系 (world / base) 下的 base 线加速度, 可选低通平滑 (从 LocoWM 移植)。
+
+    经 ``env.cfg.acc_track`` 的 StepwiseLPF 平滑; 供加速度追踪奖励 (track_pitch / jerk /
+    acc_soft) 与 ``ideal_projected_gravity`` 特权观测共享同一滤波值。StepwiseLPF 保证每步
+    只前进一次, 故 policy/critic/reward 多次调用不会重复推进。
+    """
+    assert frame in ("world", "base"), "Only 'world' and 'base' frames are supported"
+
+    use_lpf = env.cfg.acc_track.use_lpf
+    cut_off_frequency = env.cfg.acc_track.cut_off_frequency
+    control_frequency = env.cfg.acc_track.control_frequency
+
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze(1)
+    acc_w = asset.data.body_com_lin_acc_w[:, asset_cfg.body_ids].squeeze(1)
+
+    if use_lpf:
+        if not hasattr(env, "_base_lin_acc_lpf"):
+            # 控制频率 = 1/step_dt (step_dt = decimation * sim.dt), 始终与 env 同步
+            env._base_lin_acc_lpf = StepwiseLPF(cut_off_frequency, control_frequency)
+        reset_mask = (env.episode_length_buf == 0).unsqueeze(-1)
+        acc_w = env._base_lin_acc_lpf(acc_w, step=env.common_step_counter, reset_mask=reset_mask)
+
+    if frame == "base":
+        return math_utils.quat_apply_inverse(body_quat, acc_w)
+    return acc_w
+
+
+def ideal_projected_gravity(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """给定 base_acc_w, 计算理想的重力投影方向 (期望倾角方向) (从 LocoWM 移植)。
+
+    仅作 critic 特权观测的特征使用; 内部经 ``custom_base_lin_acc`` (LPF world) 承载
+    「正确滤波后的加速度」。奖励目标由本文件的 ``track_pitch_exp`` (修了退化+符号) 提供, 不用本函数。
+    """
+    acc_gain = env.cfg.acc_track.acc_gain
+    zero_threshold = env.cfg.acc_track.zero_threshold
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids].squeeze(1)
+    acc_w = custom_base_lin_acc(env, asset_cfg, frame="world")
+    g_mag = 9.81
+    ax, ay = acc_w[:, 0], acc_w[:, 1]
+    # 先死区再放大, 获得一些超调的效果
+    ax = torch.where(torch.abs(ax) < zero_threshold, torch.zeros_like(ax), ax) * acc_gain
+    ay = torch.where(torch.abs(ay) < zero_threshold, torch.zeros_like(ay), ay) * acc_gain
+    norm = torch.sqrt(ax**2 + ay**2 + g_mag**2).clamp(min=1e-9)
+    g_ideal_w = torch.stack([-ax / norm, -ay / norm, -g_mag / norm], dim=-1)
+    return math_utils.quat_apply_inverse(body_quat, g_ideal_w)
 
 
 def phase(env: ManagerBasedRLEnv, cycle_time: float) -> torch.Tensor:
